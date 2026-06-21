@@ -58,8 +58,22 @@ then reopen the repo in VS Code → **Reopen in Container**.
 
 ### Build locally
 
+The default `docker` driver doesn't support multi-platform builds. Create a
+`docker-container` driver builder once:
+
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t kube-devenv:local .
+docker buildx create --name multi --driver docker-container --use
+```
+
+Then build for your machine's architecture (single-platform loads into your local image
+store; multi-platform requires `--push` to a registry and is handled by CI):
+
+```bash
+# Apple Silicon (arm64)
+docker buildx build --platform linux/arm64 --load -t kube-devenv:local .
+
+# Intel / AMD (amd64)
+docker buildx build --platform linux/amd64 --load -t kube-devenv:local .
 ```
 
 Single-arch (faster for local dev):
