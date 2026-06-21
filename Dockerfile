@@ -13,37 +13,37 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.12.1
+ARG TOFU_VERSION=1.12.3
 
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=0.69.10
+ARG TERRAGRUNT_VERSION=1.0.8
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION=1.36.1
+ARG KUBECTL_VERSION=1.36.2
 
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=3.17.3
+ARG HELM_VERSION=4.2.2
 
 # renovate: datasource=github-releases depName=getsops/sops
-ARG SOPS_VERSION=3.10.2
+ARG SOPS_VERSION=3.13.1
 
 # renovate: datasource=github-releases depName=FiloSottile/age
-ARG AGE_VERSION=1.2.1
+ARG AGE_VERSION=1.3.1
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
-ARG GITLEAKS_VERSION=8.27.2
+ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
-ARG TRIVY_VERSION=0.63.0
+ARG TRIVY_VERSION=0.71.2
 
 # renovate: datasource=github-releases depName=sigstore/cosign
-ARG COSIGN_VERSION=2.5.0
+ARG COSIGN_VERSION=3.1.1
 
 # renovate: datasource=github-releases depName=google/yamlfmt
-ARG YAMLFMT_VERSION=0.17.0
+ARG YAMLFMT_VERSION=0.21.0
 
 # renovate: datasource=github-releases depName=mvdan/sh
-ARG SHFMT_VERSION=3.12.0
+ARG SHFMT_VERSION=3.13.1
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
