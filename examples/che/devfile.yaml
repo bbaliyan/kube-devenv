@@ -1,0 +1,71 @@
+# Eclipse Che / OpenShift Dev Spaces devfile.
+# References the same kube-devenv image as the VS Code devcontainer.
+# Replace the image tag+digest once kube-devenv is published.
+schemaVersion: 2.2.2
+
+metadata:
+  name: kube-devenv
+  displayName: kube-node developer environment
+  description: OpenTofu, Terragrunt, kubectl, Helm, cloud CLIs, and operator verb-scripts.
+
+components:
+  - name: tools
+    container:
+      # renovate: datasource=docker depName=ghcr.io/YOUR_ORG/kube-devenv
+      image: ghcr.io/YOUR_ORG/kube-devenv:v0.1.0
+      memoryLimit: 2Gi
+      cpuLimit: "2"
+      mountSources: true
+      env:
+        - name: KUBE_DEVENV_VERSION
+          value: v0.1.0
+
+commands:
+  - id: kube-init
+    exec:
+      label: "kube: init"
+      component: tools
+      commandLine: kube-init
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-plan
+    exec:
+      label: "kube: plan"
+      component: tools
+      commandLine: kube-plan
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-apply
+    exec:
+      label: "kube: apply"
+      component: tools
+      commandLine: kube-apply
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-status
+    exec:
+      label: "kube: status"
+      component: tools
+      commandLine: kube-status
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-watch
+    exec:
+      label: "kube: watch bootstrap"
+      component: tools
+      commandLine: kube-watch
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-kubeconfig
+    exec:
+      label: "kube: fetch kubeconfig"
+      component: tools
+      commandLine: kube-kubeconfig
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-destroy
+    exec:
+      label: "kube: destroy"
+      component: tools
+      commandLine: kube-destroy
+      workingDir: ${CLUSTER_DIR:-/projects}

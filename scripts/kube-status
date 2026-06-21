@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# kube-status — read bootstrap status from the node out-of-band.
+# No inbound port required on any provider.
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+
+OUTPUTS=$(terragrunt output -json 2>/dev/null) || {
+  echo "Error: run from a cluster directory containing terragrunt.hcl" >&2
+  exit 1
+}
+
+NODE_PROVIDER=$(echo "${OUTPUTS}" | jq -r '.node_provider.value')
+STATUS_REF=$(echo "${OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+
+case "${NODE_PROVIDER}" in
+
+  proxmox)
+    # STATUS_REF = VM numeric ID.
+    # Parses host from PROXMOX_VE_ENDPOINT (set for provider auth).
+    PROXMOX_HOST=$(echo "${PROXMOX_VE_ENDPOINT:-}" | sed 's|https\?://||;s|:.*||')
+    if [[ -z "${PROXMOX_HOST}" ]]; then
+      echo "Error: PROXMOX_VE_ENDPOINT is not set." >&2
+      exit 1
+    fi
+    ssh -o StrictHostKeyChecking=accept-new \
+        "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" \
+        "qm guest exec ${STATUS_REF} -- /bin/cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo 'not-started'"
+    ;;
+
+  aws)
+    # STATUS_REF = EC2 instance ID. Uses SSM (no inbound port).
+    aws ssm send-command \
+      --instance-ids "${STATUS_REF}" \
+      --document-name "AWS-RunShellScript" \
+      --parameters 'commands=["cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo not-started"]' \
+      --query "Command.CommandId" --output text \
+      | xargs -I{} aws ssm get-command-invocation \
+          --instance-id "${STATUS_REF}" --command-id {} \
+          --query "StandardOutputContent" --output text
+    ;;
+
+  azure)
+    # STATUS_REF = full Azure VM resource ID.
+    RESOURCE_GROUP=$(echo "${OUTPUTS}" | jq -r '.resource_group_name.value')
+    VM_NAME=$(basename "${STATUS_REF}")
+    az vm run-command invoke \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${VM_NAME}" \
+      --command-id RunShellScript \
+      --scripts "cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo not-started" \
+      --query "value[0].message" --output tsv
+    ;;
+
+  *)
+    echo "Error: unknown node_provider '${NODE_PROVIDER}'" >&2
+    exit 1
+    ;;
+esac

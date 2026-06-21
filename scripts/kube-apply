@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# kube-apply — terragrunt apply for the selected cluster.
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+terragrunt apply "$@"

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# kube-shell — break-glass shell session on the node. No inbound port required.
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+
+OUTPUTS=$(terragrunt output -json 2>/dev/null) || {
+  echo "Error: run from a cluster directory containing terragrunt.hcl" >&2
+  exit 1
+}
+
+NODE_PROVIDER=$(echo "${OUTPUTS}" | jq -r '.node_provider.value')
+STATUS_REF=$(echo "${OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+
+case "${NODE_PROVIDER}" in
+
+  proxmox)
+    PROXMOX_HOST=$(echo "${PROXMOX_VE_ENDPOINT:-}" | sed 's|https\?://||;s|:.*||')
+    if [[ -z "${PROXMOX_HOST}" ]]; then
+      echo "Error: PROXMOX_VE_ENDPOINT is not set." >&2
+      exit 1
+    fi
+    echo "Opening shell on VM ${STATUS_REF} via qm terminal (Ctrl+O to exit)..."
+    ssh -t "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "qm terminal ${STATUS_REF}"
+    ;;
+
+  aws)
+    echo "Starting SSM session on ${STATUS_REF}..."
+    aws ssm start-session --target "${STATUS_REF}"
+    ;;
+
+  azure)
+    RESOURCE_GROUP=$(echo "${OUTPUTS}" | jq -r '.resource_group_name.value')
+    VM_NAME=$(basename "${STATUS_REF}")
+    echo "Starting Azure run-command shell on ${VM_NAME}..."
+    echo "(Azure run-command is non-interactive — use 'az serial-console' for a live session)"
+    az vm run-command invoke \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${VM_NAME}" \
+      --command-id RunShellScript \
+      --scripts "${*:-bash}"
+    ;;
+
+  *)
+    echo "Error: unknown node_provider '${NODE_PROVIDER}'" >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# kube-destroy — destroy the selected cluster (requires typed confirmation).
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+
+CLUSTER=$(basename "$(pwd)")
+echo "WARNING: this will destroy cluster '${CLUSTER}' and all its resources."
+echo -n "Type the cluster name to confirm: "
+read -r CONFIRM
+
+if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
+  echo "Confirmation did not match. Aborting." >&2
+  exit 1
+fi
+
+terragrunt destroy

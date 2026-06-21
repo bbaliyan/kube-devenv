@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# kube-watch — poll kube-status until bootstrap reports 'complete' or 'failed'.
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+
+INTERVAL="${KUBE_WATCH_INTERVAL:-15}"
+TIMEOUT="${KUBE_WATCH_TIMEOUT:-600}"
+ELAPSED=0
+CLUSTER=$(basename "$(pwd)")
+
+echo "Watching bootstrap for cluster '${CLUSTER}' (polling every ${INTERVAL}s, timeout ${TIMEOUT}s)..."
+
+while true; do
+  STATUS=$(kube-status 2>/dev/null | tr -d '[:space:]' || echo "error")
+
+  printf "[%ds] %s\n" "${ELAPSED}" "${STATUS}"
+
+  case "${STATUS}" in
+    complete)
+      echo "Bootstrap complete."
+      exit 0
+      ;;
+    failed)
+      echo "Bootstrap failed. Run 'kube-status' for details." >&2
+      exit 1
+      ;;
+  esac
+
+  if (( ELAPSED >= TIMEOUT )); then
+    echo "Timeout waiting for bootstrap after ${TIMEOUT}s." >&2
+    exit 1
+  fi
+
+  sleep "${INTERVAL}"
+  ELAPSED=$(( ELAPSED + INTERVAL ))
+done

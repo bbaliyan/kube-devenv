@@ -1,0 +1,60 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "kube-devenv Renovate config — also serves as the shared preset for kube-node and kube-examples.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "labels": ["renovate"],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Batch routine patch updates into one weekly PR",
+      "matchUpdateTypes": ["patch", "pin", "pinDigest"],
+      "groupName": "patch updates",
+      "schedule": ["before 6am on Monday"]
+    },
+    {
+      "description": "Auto-merge patch PRs once CI is green",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Minor/major require manual review",
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["renovate", "needs-review"]
+    },
+    {
+      "description": "Security fixes get individual PRs immediately (overrides weekly batch)",
+      "matchCategories": ["security"],
+      "groupName": null,
+      "schedule": ["at any time"],
+      "automerge": false,
+      "labels": ["renovate", "security"]
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Dockerfile ARG versions with inline Renovate annotations",
+      "customType": "regex",
+      "fileMatch": ["(^|/)Dockerfile$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\nARG [A-Z_]+_VERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "devcontainer.json image digest pins",
+      "customType": "regex",
+      "fileMatch": ["(^|/)devcontainer\\.json$"],
+      "matchStrings": [
+        "\"image\":\\s*\"(?<depName>[^\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ]
+}

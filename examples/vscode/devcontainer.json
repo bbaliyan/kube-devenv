@@ -1,0 +1,55 @@
+{
+  // kube-devenv reference devcontainer — copy to your consumer repo's .devcontainer/
+  //
+  // While kube-devenv is not yet published to a registry, this builds the image
+  // from a sibling checkout of kube-devenv (../kube-devenv relative to this repo).
+  //
+  // Once published, replace the "build" block with:
+  //   "image": "ghcr.io/YOUR_ORG/kube-devenv:v0.1.0@sha256:<digest>"
+  // Renovate will keep the digest current via PR.
+  "name": "kube-devenv",
+  "build": {
+    // Assumes kube-devenv is checked out as a sibling of this repo:
+    //   ../kube-devenv   (relative to the repo root, not this file)
+    "context": "../../kube-devenv",
+    "dockerfile": "../../kube-devenv/Dockerfile"
+  },
+
+  // Copy VS Code tasks from the image on every container start.
+  // .vscode/tasks.json is gitignored — it stays up-to-date with the image.
+  "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
+  "postCreateCommand": "pre-commit install || true",
+
+  // Mount host credentials read-only; .kube writable so kube-kubeconfig can write.
+  // Uses ${localEnv:HOME} (forward slashes) — works on macOS, Linux, and Windows.
+  "mounts": [
+    "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
+    "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
+    // Forward the SSH agent so kube-status/kube-kubeconfig can reach the Proxmox host.
+    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+  ],
+
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    // Proxmox: set in your shell profile and it will be forwarded into the container.
+    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}",
+    "PROXMOX_VE_API_TOKEN": "${localEnv:PROXMOX_VE_API_TOKEN}",
+    // AWS: forwarded automatically via the .aws mount above.
+    // Azure: set ARM_* vars or use 'az login' inside the container.
+    "KUBE_DEVENV_VERSION": "${containerEnv:KUBE_DEVENV_VERSION}"
+  },
+
+  "remoteUser": "root",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.terraform",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "mhutchie.git-graph"
+      ]
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "kube: init",
+      "type": "shell",
+      "command": "kube-init",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: plan",
+      "type": "shell",
+      "command": "kube-plan",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: apply",
+      "type": "shell",
+      "command": "kube-apply",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: watch bootstrap",
+      "type": "shell",
+      "command": "kube-watch",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: status",
+      "type": "shell",
+      "command": "kube-status",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: fetch kubeconfig",
+      "type": "shell",
+      "command": "kube-kubeconfig",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: secrets",
+      "type": "shell",
+      "command": "kube-secrets",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "kube: destroy",
+      "type": "shell",
+      "command": "kube-destroy",
+      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "clusterPath",
+      "type": "promptString",
+      "description": "Cluster directory relative to workspace root",
+      "default": "live/proxmox/clusters/homelab-1"
+    }
+  ]
+}

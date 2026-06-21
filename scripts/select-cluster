@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# select-cluster — print or change the active cluster directory.
+#
+# Usage (from your consumer repo root):
+#   eval "$(select-cluster live/proxmox/clusters/homelab-1)"
+#   select-cluster          # print current
+#
+# Sets CLUSTER_DIR in the calling shell. All other kube-* verbs must be run
+# from within the cluster directory (they call 'terragrunt output' there).
+set -euo pipefail
+
+if [[ $# -eq 0 ]]; then
+  echo "${CLUSTER_DIR:-<not set — run: eval \"\$(select-cluster <path>)\"}"
+  exit 0
+fi
+
+TARGET="$1"
+if [[ ! -f "${TARGET}/terragrunt.hcl" ]]; then
+  echo "Error: no terragrunt.hcl found at '${TARGET}'" >&2
+  exit 1
+fi
+
+ABS="$(cd "${TARGET}" && pwd)"
+echo "export CLUSTER_DIR='${ABS}'"
+echo "cd '${ABS}'"
