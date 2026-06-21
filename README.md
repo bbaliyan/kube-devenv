@@ -61,6 +61,7 @@ against supply chain attacks where a compromised registry rewrites a tag.
   // renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
   "image": "ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
   "name": "my-project",
+  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age",
   "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
   "postCreateCommand": "pre-commit install || true",
   "mounts": [
