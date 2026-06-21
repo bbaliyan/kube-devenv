@@ -1,7 +1,10 @@
 # kube-devenv
 
-Pre-built, multi-arch (`linux/amd64` + `linux/arm64`) container image that gives every
-operator the exact tested toolchain plus IDE wiring to drive the kube-node platform.
+Pre-built, multi-arch (`linux/amd64` + `linux/arm64`) container image providing a
+consistent, pinned toolchain for consuming and operating the kube-\* platform. Used
+by developers in VS Code devcontainers, by CI pipelines (dev/CI parity — same image
+everywhere), and by operators managing clusters provisioned with
+[kube-node](https://github.com/bbaliyan/kube-node).
 
 ## What's inside
 
@@ -9,7 +12,7 @@ operator the exact tested toolchain plus IDE wiring to drive the kube-node platf
 |---|---|
 | `tofu` | OpenTofu — IaC provisioning |
 | `terragrunt` | Terragrunt — DRY wrapper + state management |
-| `kubectl` | Kubernetes CLI (minor matches `k8s_version` in kube-node) |
+| `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-node) |
 | `helm` | Helm package manager |
 | `aws` | AWS CLI v2 |
 | `az` | Azure CLI |
@@ -46,27 +49,55 @@ select-cluster    set CLUSTER_DIR in the calling shell
 
 ### VS Code devcontainer (recommended)
 
-Copy `examples/vscode/devcontainer.json` to your consumer repo's `.devcontainer/`:
+Create `.devcontainer/devcontainer.json` in your repo with the following content.
+Replace the digest with the one for your chosen release (see
+[releases](https://github.com/bbaliyan/kube-devenv/releases) for the latest):
 
-```bash
-mkdir -p .devcontainer
-cp examples/vscode/devcontainer.json .devcontainer/devcontainer.json
+```jsonc
+{
+  // renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
+  "image": "ghcr.io/bbaliyan/kube-devenv:0.1.5@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
+  "name": "my-project",
+  "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
+  "postCreateCommand": "pre-commit install || true",
+  "mounts": [
+    "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
+    "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
+    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+  ],
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}",
+    "PROXMOX_VE_API_TOKEN": "${localEnv:PROXMOX_VE_API_TOKEN}"
+  },
+  "remoteUser": "root"
+}
 ```
 
-Replace the `sha256:<digest>` placeholder with the digest of the release you want to pin:
+A fuller example with VS Code extension recommendations is in
+[`examples/vscode/devcontainer.json`](https://github.com/bbaliyan/kube-devenv/blob/main/examples/vscode/devcontainer.json).
 
-```bash
-docker pull ghcr.io/bbaliyan/kube-devenv:v0.1.0
-docker inspect ghcr.io/bbaliyan/kube-devenv:v0.1.0 --format '{{index .RepoDigests 0}}'
+Reopen your repo in VS Code → **Reopen in Container**. Renovate keeps the digest
+current via automated PRs once configured.
+
+### CI pipeline
+
+Reference the image directly in your GitHub Actions workflow:
+
+```yaml
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      # renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
+      image: ghcr.io/bbaliyan/kube-devenv:0.1.5@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c
+    steps:
+      - uses: actions/checkout@v4
+      - run: tofu fmt -check && tofu validate
 ```
 
-Then reopen your repo in VS Code → **Reopen in Container**. Renovate keeps the digest
-current via automated PRs.
-
-### Build for your machine (local dev)
-
-Builds for your current architecture and loads the image directly into Docker — the
-fastest path for local development and testing:
+### Build locally (contributors / kube-devenv development only)
 
 ```bash
 # Apple Silicon (M1/M2/M3/M4 — arm64)
@@ -76,34 +107,16 @@ docker buildx build --platform linux/arm64 --load -t kube-devenv:local .
 docker buildx build --platform linux/amd64 --load -t kube-devenv:local .
 ```
 
-### Build for both architectures (release / CI)
-
-Multi-platform builds require a `docker-container` driver builder. Create it once:
-
-```bash
-docker buildx create --name multi --driver docker-container --use
-```
-
-Then build and push both architectures under one manifest tag:
-
-```bash
-docker buildx build \
-  --builder multi \
-  --platform linux/amd64,linux/arm64 \
-  --push \
-  -t ghcr.io/bbaliyan/kube-devenv:v0.1.0 \
-  .
-```
-
-> `--push` is required for multi-platform — `--load` only works for single-arch.
-> The CI workflow (`build.yml`) does this automatically on every `v*` tag.
+> CI builds both architectures automatically on every `v*` tag via `.github/workflows/build.yml`.
+> The `docker buildx create --name multi --driver docker-container --use` builder is only
+> needed if you want to build and push multi-arch locally.
 
 ### Verify tool versions
 
 ```bash
-docker run --rm kube-devenv:local bash -c "
+docker run --rm ghcr.io/bbaliyan/kube-devenv:0.1.5 bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
-  helm version && aws --version && az version &&
+  helm version && aws --version && az --version &&
   sops --version && age --version && gitleaks version &&
   trivy --version && cosign version
 "
@@ -112,20 +125,16 @@ docker run --rm kube-devenv:local bash -c "
 ## Version compatibility
 
 The image's `kubectl` minor tracks `k8s_version` in kube-node (Kubernetes ±1 skew
-policy). The `KUBE_DEVENV_VERSION` env var is exported from the image; kube-node will
-use it in a future compatibility check.
-
-On container start the banner prints:
+policy). On container start the banner prints:
 
 ```
-kube-devenv v0.1.0 · kubectl 1.36.x · tofu 1.12.x · targets k8s 1.36
+kube-devenv 0.1.5 · kubectl 1.36.x · tofu 1.12.x · targets k8s 1.36
 ```
 
 ## Renovate
 
 All tool versions in the `Dockerfile` are managed by Renovate. The `renovate.json` in
-this repo is also the **shared preset** for kube-node and kube-examples — they extend it
-once this repo is published:
+this repo also serves as the **shared preset** for kube-node and kube-examples:
 
 ```json
 { "extends": ["github>bbaliyan/kube-devenv"] }
