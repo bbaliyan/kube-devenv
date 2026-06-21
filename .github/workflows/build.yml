@@ -55,16 +55,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Install Trivy from the same version pinned in the Dockerfile ARG —
+      # single source of truth, consistent between local dev and CI.
+      - name: Install Trivy
+        if: github.event_name != 'pull_request'
+        run: |
+          TRIVY_VERSION=$(grep 'ARG TRIVY_VERSION=' Dockerfile | cut -d= -f2)
+          curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+            | tar -xz -C /usr/local/bin trivy
+          trivy --version
+
       - name: Trivy image scan
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
-          format: sarif
-          output: trivy.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+        run: |
+          trivy image \
+            --format sarif --output trivy.sarif \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 \
+            ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
 
       - name: Upload Trivy SARIF to GitHub Security tab
         if: github.event_name != 'pull_request' && always()
