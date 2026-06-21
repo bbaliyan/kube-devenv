@@ -56,31 +56,40 @@ cp /path/to/kube-devenv/examples/vscode/devcontainer.json .devcontainer/devconta
 Edit the `build.context` path (or replace with the published image digest once available),
 then reopen the repo in VS Code → **Reopen in Container**.
 
-### Build locally
+### Build for your machine (local dev)
 
-The default `docker` driver doesn't support multi-platform builds. Create a
-`docker-container` driver builder once:
+Builds for your current architecture and loads the image directly into Docker — the
+fastest path for local development and testing:
+
+```bash
+# Apple Silicon (M1/M2/M3/M4 — arm64)
+docker buildx build --platform linux/arm64 --load -t kube-devenv:local .
+
+# Intel / AMD Mac or Linux (amd64)
+docker buildx build --platform linux/amd64 --load -t kube-devenv:local .
+```
+
+### Build for both architectures (release / CI)
+
+Multi-platform builds require a `docker-container` driver builder. Create it once:
 
 ```bash
 docker buildx create --name multi --driver docker-container --use
 ```
 
-Then build for your machine's architecture (single-platform loads into your local image
-store; multi-platform requires `--push` to a registry and is handled by CI):
+Then build and push both architectures under one manifest tag:
 
 ```bash
-# Apple Silicon (arm64)
-docker buildx build --platform linux/arm64 --load -t kube-devenv:local .
-
-# Intel / AMD (amd64)
-docker buildx build --platform linux/amd64 --load -t kube-devenv:local .
+docker buildx build \
+  --builder multi \
+  --platform linux/amd64,linux/arm64 \
+  --push \
+  -t ghcr.io/YOUR_ORG/kube-devenv:v0.1.0 \
+  .
 ```
 
-Single-arch (faster for local dev):
-
-```bash
-docker buildx build --platform linux/amd64 -t kube-devenv:local .
-```
+> `--push` is required for multi-platform — `--load` only works for single-arch.
+> The CI workflow (`build.yml`) does this automatically on every `v*` tag.
 
 ### Verify tool versions
 
