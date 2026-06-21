@@ -5,7 +5,7 @@
   // from a sibling checkout of kube-devenv (../kube-devenv relative to this repo).
   //
   // Once published, replace the "build" block with:
-  //   "image": "ghcr.io/YOUR_ORG/kube-devenv:v0.1.0@sha256:<digest>"
+  //   "image": "ghcr.io/bbaliyan/kube-devenv:v0.1.0@sha256:<digest>"
   // Renovate will keep the digest current via PR.
   "name": "kube-devenv",
   "build": {

@@ -84,7 +84,7 @@ docker buildx build \
   --builder multi \
   --platform linux/amd64,linux/arm64 \
   --push \
-  -t ghcr.io/YOUR_ORG/kube-devenv:v0.1.0 \
+  -t ghcr.io/bbaliyan/kube-devenv:v0.1.0 \
   .
 ```
 
@@ -121,7 +121,7 @@ this repo is also the **shared preset** for kube-node and kube-examples — they
 once this repo is published:
 
 ```json
-{ "extends": ["github>YOUR_ORG/kube-devenv"] }
+{ "extends": ["github>bbaliyan/kube-devenv"] }
 ```
 
 ## License

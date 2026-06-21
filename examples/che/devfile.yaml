@@ -11,8 +11,8 @@ metadata:
 components:
   - name: tools
     container:
-      # renovate: datasource=docker depName=ghcr.io/YOUR_ORG/kube-devenv
-      image: ghcr.io/YOUR_ORG/kube-devenv:v0.1.0
+      # renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
+      image: ghcr.io/bbaliyan/kube-devenv:v0.1.0
       memoryLimit: 2Gi
       cpuLimit: "2"
       mountSources: true
