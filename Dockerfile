@@ -108,9 +108,9 @@ RUN curl -fsSL "https://github.com/FiloSottile/age/releases/download/v${AGE_VERS
     && age --version
 
 # ── Gitleaks ──────────────────────────────────────────────────────────────────
-# Gitleaks uses "x86_64" on amd64 and "arm64" on arm64.
+# Gitleaks uses "x64" on amd64 and "arm64" on arm64.
 
-RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") \
+RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x64" || echo "arm64") \
     && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${_arch}.tar.gz" \
     | tar -xz -C /usr/local/bin gitleaks \
     && gitleaks version
