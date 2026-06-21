@@ -50,13 +50,16 @@ select-cluster    set CLUSTER_DIR in the calling shell
 ### VS Code devcontainer (recommended)
 
 Create `.devcontainer/devcontainer.json` in your repo with the following content.
-Replace the digest with the one for your chosen release (see
-[releases](https://github.com/bbaliyan/kube-devenv/releases) for the latest):
+The image is pinned with both a tag and a digest (`tag@sha256:...`). The tag is
+human-readable; the digest makes the reference **immutable** — even if the tag is
+repointed, Docker pulls exactly the layers that were built and signed. This protects
+against supply chain attacks where a compromised registry rewrites a tag.
+[Renovate](https://docs.renovatebot.com) keeps the digest current automatically via PR.
 
 ```jsonc
 {
   // renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
-  "image": "ghcr.io/bbaliyan/kube-devenv:0.1.5@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
+  "image": "ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
   "name": "my-project",
   "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
   "postCreateCommand": "pre-commit install || true",
@@ -91,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
-      image: ghcr.io/bbaliyan/kube-devenv:0.1.5@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c
+      image: ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c
     steps:
       - uses: actions/checkout@v4
       - run: tofu fmt -check && tofu validate
