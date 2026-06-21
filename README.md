@@ -50,11 +50,18 @@ Copy `examples/vscode/devcontainer.json` to your consumer repo's `.devcontainer/
 
 ```bash
 mkdir -p .devcontainer
-cp /path/to/kube-devenv/examples/vscode/devcontainer.json .devcontainer/devcontainer.json
+cp examples/vscode/devcontainer.json .devcontainer/devcontainer.json
 ```
 
-Edit the `build.context` path (or replace with the published image digest once available),
-then reopen the repo in VS Code → **Reopen in Container**.
+Replace the `sha256:<digest>` placeholder with the digest of the release you want to pin:
+
+```bash
+docker pull ghcr.io/bbaliyan/kube-devenv:v0.1.0
+docker inspect ghcr.io/bbaliyan/kube-devenv:v0.1.0 --format '{{index .RepoDigests 0}}'
+```
+
+Then reopen your repo in VS Code → **Reopen in Container**. Renovate keeps the digest
+current via automated PRs.
 
 ### Build for your machine (local dev)
 

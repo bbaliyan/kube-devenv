@@ -23,9 +23,6 @@ fix: parse arm64 arch token in age install
 chore: bump KUBECTL_VERSION to 1.36.2
 ```
 
-This feeds [Release Please](https://github.com/googleapis/release-please) which
-generates `CHANGELOG.md` and cuts releases automatically.
-
 ## Testing changes
 
 Build the image locally before opening a PR:

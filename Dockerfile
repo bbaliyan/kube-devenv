@@ -2,14 +2,6 @@
 # kube-devenv — operator toolchain image.
 # Builds for linux/amd64 and linux/arm64 via docker buildx.
 # All tool versions are managed by Renovate (inline annotations).
-#
-# TODO(size): image is ~1.71 GB. Main contributors:
-#   - Azure CLI Microsoft apt bundle ships a standalone Python in /opt/az (~610 MB)
-#   - AWS CLI v2 bundled installer ships a standalone Python in /usr/local/aws-cli (~260 MB)
-#   - Go binaries are already stripped by upstream (-s -w); strip(1) saves nothing.
-#   - pip install azure-cli was tried but resolves more transitive deps → larger, not smaller.
-#   Investigate: mcr.microsoft.com/azure-cli multi-stage copy, slim AWS CLI v2 via pip
-#   once an official package exists, or dropping to a single-provider image variant.
 
 FROM debian:bookworm-slim
 
