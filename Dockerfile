@@ -13,6 +13,10 @@
 
 FROM debian:bookworm-slim
 
+LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-node platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, trivy, cosign)"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 # BuildKit injects TARGETARCH ("amd64" or "arm64") automatically.
