@@ -68,7 +68,7 @@ against supply chain attacks where a compromised registry rewrites a tag.
     "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
     "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
-    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+    "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
   ],
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",

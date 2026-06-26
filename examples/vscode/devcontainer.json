@@ -23,7 +23,7 @@
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
     "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
     // Forward the SSH agent so kube-status/kube-kubeconfig can reach the Proxmox host.
-    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+    "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
   ],
 
   "remoteEnv": {
