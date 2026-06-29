@@ -6,7 +6,7 @@
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-node platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, trivy, cosign)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-node platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, trivy, cosign, fzf, session-manager-plugin, make)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gnupg \
     jq \
+    make \
     openssh-client \
     python3 \
     python3-pip \
@@ -143,6 +144,15 @@ RUN curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/
     && chmod +x /usr/local/bin/shfmt \
     && shfmt --version
 
+# ── fzf ───────────────────────────────────────────────────────────────────────
+
+# renovate: datasource=github-releases depName=junegunn/fzf
+ARG FZF_VERSION=0.62.0
+
+RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin fzf \
+    && fzf --version
+
 # ── AWS CLI v2 ────────────────────────────────────────────────────────────────
 # AWS uses "x86_64" on amd64 and "aarch64" on arm64.
 
@@ -165,6 +175,16 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     && apt-get install -y --no-install-recommends azure-cli \
     && rm -rf /var/lib/apt/lists/* \
     && az --version
+
+# ── AWS Session Manager Plugin ────────────────────────────────────────────────
+# Not Renovate-managed — AWS does not publish versioned releases to GitHub.
+
+RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_arm64") \
+    && curl -fsSL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/${_pkg}/session-manager-plugin.deb" \
+       -o /tmp/session-manager-plugin.deb \
+    && dpkg -i /tmp/session-manager-plugin.deb \
+    && rm /tmp/session-manager-plugin.deb \
+    && session-manager-plugin --version
 
 # ── Operator verb-scripts ─────────────────────────────────────────────────────
 

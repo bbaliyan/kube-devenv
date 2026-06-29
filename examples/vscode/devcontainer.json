@@ -11,10 +11,10 @@
   "image": "ghcr.io/bbaliyan/kube-devenv:v0.1.0@sha256:<digest>",
   "name": "kube-devenv",
 
-  // Copy VS Code tasks from the image on every container start.
+  // Merge base tasks with any consumer-defined tasks-custom.json on every container start.
   // .vscode/tasks.json is gitignored — it stays up-to-date with the image.
   "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age",
-  "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
+  "postStartCommand": "kube-tasks-merge",
   "postCreateCommand": "pre-commit install || true",
 
   // Mount host credentials read-only; .kube writable so kube-kubeconfig can write.
@@ -28,6 +28,7 @@
 
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
+    "WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
     // Proxmox: set in your shell profile and it will be forwarded into the container.
     "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}",
     "PROXMOX_VE_API_TOKEN": "${localEnv:PROXMOX_VE_API_TOKEN}"
@@ -43,8 +44,21 @@
         "hashicorp.terraform",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
         "redhat.vscode-yaml",
-        "mhutchie.git-graph"
-      ]
+        "mhutchie.git-graph",
+        "actboy168.tasks",
+        "foxundermoon.shell-format"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "[terraform]": { "editor.defaultFormatter": "hashicorp.terraform" },
+        "[yaml]":      { "editor.defaultFormatter": "redhat.vscode-yaml" },
+        "[shellscript]": {
+          "editor.defaultFormatter": "foxundermoon.shell-format",
+          "shellformat.flag": "-i 2 -ci"
+        },
+        "[json]":  { "editor.defaultFormatter": "redhat.vscode-yaml" },
+        "[jsonc]": { "editor.defaultFormatter": "redhat.vscode-yaml" }
+      }
     }
   }
 }

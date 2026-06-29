@@ -2,76 +2,81 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "kube: init",
+      "label": "$(tag) Select Cluster",
       "type": "shell",
-      "command": "kube-init",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "build",
+      "command": "select-cluster",
+      "presentation": { "reveal": "always", "panel": "dedicated", "close": false },
       "problemMatcher": []
     },
     {
-      "label": "kube: plan",
+      "label": "$(debug-start) Start Node",
       "type": "shell",
-      "command": "kube-plan",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "build",
+      "command": "kube-run kube-start",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: apply",
+      "label": "$(run-all) Init",
       "type": "shell",
-      "command": "kube-apply",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "build",
+      "command": "kube-run kube-init",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: watch bootstrap",
+      "label": "$(cloud-upload) Plan",
       "type": "shell",
-      "command": "kube-watch",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "test",
+      "command": "kube-run kube-plan",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: status",
+      "label": "$(play) Apply",
       "type": "shell",
-      "command": "kube-status",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "test",
+      "command": "kube-run kube-apply",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: fetch kubeconfig",
+      "label": "$(pulse) Status",
       "type": "shell",
-      "command": "kube-kubeconfig",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "test",
+      "command": "kube-run kube-status",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: secrets",
+      "label": "$(sync) Watch",
       "type": "shell",
-      "command": "kube-secrets",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "test",
+      "command": "kube-run kube-watch",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
     {
-      "label": "kube: destroy",
+      "label": "$(plug) Kubeconfig",
       "type": "shell",
-      "command": "kube-destroy",
-      "options": { "cwd": "${workspaceFolder}/${input:clusterPath}" },
-      "group": "build",
+      "command": "kube-run kube-kubeconfig",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
-    }
-  ],
-  "inputs": [
+    },
     {
-      "id": "clusterPath",
-      "type": "promptString",
-      "description": "Cluster directory relative to workspace root",
-      "default": "live/proxmox/clusters/homelab-1"
+      "label": "$(shield) Secrets",
+      "type": "shell",
+      "command": "kube-run kube-secrets",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(terminal) Shell",
+      "type": "shell",
+      "command": "kube-run kube-shell",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(trash) Destroy",
+      "type": "shell",
+      "command": "kube-run kube-destroy",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
     }
   ]
 }

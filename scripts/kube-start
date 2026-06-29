@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# kube-start — start a stopped cluster node.
+# Run from the cluster directory (live/<provider>/clusters/<name>/).
+set -euo pipefail
+
+OUTPUTS=$(terragrunt output -json 2>/dev/null) || {
+  echo "Error: run from a cluster directory containing terragrunt.hcl" >&2
+  exit 1
+}
+
+NODE_PROVIDER=$(echo "${OUTPUTS}" | jq -r '.node_provider.value')
+STATUS_REF=$(echo "${OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+
+case "${NODE_PROVIDER}" in
+
+  aws)
+    echo "Starting EC2 instance ${STATUS_REF}..."
+    aws ec2 start-instances --instance-ids "${STATUS_REF}" \
+      --query 'StartingInstances[0].CurrentState.Name' --output text
+    ;;
+
+  azure)
+    RESOURCE_GROUP=$(echo "${OUTPUTS}" | jq -r '.resource_group_name.value')
+    VM_NAME=$(basename "${STATUS_REF}")
+    echo "Starting Azure VM ${VM_NAME} in resource group ${RESOURCE_GROUP}..."
+    az vm start --resource-group "${RESOURCE_GROUP}" --name "${VM_NAME}"
+    ;;
+
+  proxmox)
+    PROXMOX_HOST=$(echo "${PROXMOX_VE_ENDPOINT:-}" | sed 's|https\?://||;s|:.*||')
+    if [[ -z "${PROXMOX_HOST}" ]]; then
+      echo "Error: PROXMOX_VE_ENDPOINT is not set." >&2
+      exit 1
+    fi
+    echo "Starting Proxmox VM ${STATUS_REF}..."
+    ssh "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "qm start ${STATUS_REF}"
+    ;;
+
+  *)
+    echo "Error: unknown node_provider '${NODE_PROVIDER}'" >&2
+    exit 1
+    ;;
+esac

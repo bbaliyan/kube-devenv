@@ -1,25 +1,73 @@
 #!/usr/bin/env bash
-# select-cluster — print or change the active cluster directory.
+# select-cluster — pick and persist the active cluster directory.
 #
-# Usage (from your consumer repo root):
-#   eval "$(select-cluster live/proxmox/clusters/homelab-1)"
-#   select-cluster          # print current
+# Usage (from workspace root):
+#   select-cluster               # interactive fzf picker
+#   select-cluster <path>        # set directly (relative or absolute)
+#   select-cluster --current     # print the currently selected path
 #
-# Sets CLUSTER_DIR in the calling shell. All other kube-* verbs must be run
-# from within the cluster directory (they call 'terragrunt output' there).
+# Persists to .vscode/.selected-cluster and updates the VS Code window title
+# in .vscode/settings.json so the cluster name is always visible.
 set -euo pipefail
 
-if [[ $# -eq 0 ]]; then
-  echo "${CLUSTER_DIR:-<not set — run: eval \"\$(select-cluster <path>)\"}"
+WORKSPACE="${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+PERSIST_FILE="${WORKSPACE}/.vscode/.selected-cluster"
+SETTINGS_FILE="${WORKSPACE}/.vscode/settings.json"
+
+if [[ "${1:-}" == "--current" ]]; then
+  if [[ -f "${PERSIST_FILE}" ]]; then
+    cat "${PERSIST_FILE}"
+  else
+    echo "<none>"
+  fi
   exit 0
 fi
 
-TARGET="$1"
+if [[ $# -eq 0 ]]; then
+  mapfile -t CLUSTERS < <(
+    find "${WORKSPACE}/live" -path "*/clusters/*/terragrunt.hcl" -print 2>/dev/null \
+      | sed "s|${WORKSPACE}/||" \
+      | sed 's|/terragrunt.hcl$||' \
+      | sort
+  )
+
+  if [[ ${#CLUSTERS[@]} -eq 0 ]]; then
+    echo "Error: no clusters found under ${WORKSPACE}/live" >&2
+    exit 1
+  fi
+
+  TARGET=$(printf '%s\n' "${CLUSTERS[@]}" \
+    | fzf --prompt="Select cluster: " --height=10 --border) || {
+    echo "No cluster selected." >&2
+    exit 1
+  }
+  TARGET="${WORKSPACE}/${TARGET}"
+else
+  TARGET="$1"
+  if [[ "${TARGET}" != /* ]]; then
+    TARGET="${WORKSPACE}/${TARGET}"
+  fi
+fi
+
 if [[ ! -f "${TARGET}/terragrunt.hcl" ]]; then
   echo "Error: no terragrunt.hcl found at '${TARGET}'" >&2
   exit 1
 fi
 
 ABS="$(cd "${TARGET}" && pwd)"
-echo "export CLUSTER_DIR='${ABS}'"
-echo "cd '${ABS}'"
+CLUSTER_NAME="$(basename "${ABS}")"
+WORKSPACE_NAME="$(basename "${WORKSPACE}")"
+
+mkdir -p "${WORKSPACE}/.vscode"
+echo "${ABS}" > "${PERSIST_FILE}"
+
+TITLE="${WORKSPACE_NAME} [${CLUSTER_NAME}] \${separator}\${appName}"
+if [[ -f "${SETTINGS_FILE}" ]]; then
+  TMP="$(mktemp)"
+  jq --arg t "${TITLE}" '. + {"window.title": $t}' "${SETTINGS_FILE}" > "${TMP}"
+  mv "${TMP}" "${SETTINGS_FILE}"
+else
+  jq -n --arg t "${TITLE}" '{"window.title": $t}' > "${SETTINGS_FILE}"
+fi
+
+echo "Selected: ${CLUSTER_NAME} (${ABS})"

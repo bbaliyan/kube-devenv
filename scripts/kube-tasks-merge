@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# kube-tasks-merge — merge the image's base tasks.json with consumer custom task files.
+#
+# Usage (from workspace root):
+#   kube-tasks-merge                           # base + .devcontainer/tasks-custom.json
+#   kube-tasks-merge file1.json [file2.json]   # base + specified files in order
+#
+# Output: .vscode/tasks.json
+set -euo pipefail
+
+BASE="/usr/share/kube-devenv/tasks.json"
+OUTPUT=".vscode/tasks.json"
+
+mkdir -p .vscode
+
+if [[ $# -eq 0 ]]; then
+  CUSTOM_FILES=(".devcontainer/tasks-custom.json")
+else
+  CUSTOM_FILES=("$@")
+fi
+
+INPUT_FILES=("${BASE}")
+for f in "${CUSTOM_FILES[@]}"; do
+  [[ -f "$f" ]] && INPUT_FILES+=("$f")
+done
+
+if [[ ${#INPUT_FILES[@]} -eq 1 ]]; then
+  cp "${BASE}" "${OUTPUT}"
+  echo "kube-tasks-merge: $(jq '.tasks|length' "${BASE}") standard tasks → ${OUTPUT}"
+  exit 0
+fi
+
+jq -s '
+  .[0] as $base |
+  {
+    version: $base.version,
+    tasks: ([.[].tasks // []] | add),
+    inputs: ([.[].inputs // []] | add)
+  }
+  | if .inputs == [] then del(.inputs) else . end
+' "${INPUT_FILES[@]}" > "${OUTPUT}"
+
+BASE_COUNT=$(jq '.tasks|length' "${BASE}")
+TOTAL_COUNT=$(jq '.tasks|length' "${OUTPUT}")
+echo "kube-tasks-merge: ${BASE_COUNT} standard + $((TOTAL_COUNT - BASE_COUNT)) custom = ${TOTAL_COUNT} tasks → ${OUTPUT}"
