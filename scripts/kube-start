@@ -3,8 +3,9 @@
 # Run from the cluster directory (live/<provider>/clusters/<name>/).
 set -euo pipefail
 
-OUTPUTS=$(terragrunt output -json 2>/dev/null) || {
-  echo "Error: run from a cluster directory containing terragrunt.hcl" >&2
+OUTPUTS=$(terragrunt output -json) || {
+  echo "Error: 'terragrunt output' failed (see error above) — common causes:" >&2
+  echo "  wrong directory, expired AWS credentials, or no state applied yet." >&2
   exit 1
 }
 

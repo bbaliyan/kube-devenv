@@ -13,4 +13,4 @@ if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
   exit 1
 fi
 
-terragrunt destroy
+terragrunt destroy -auto-approve
