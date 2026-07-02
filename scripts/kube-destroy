@@ -13,4 +13,18 @@ if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
   exit 1
 fi
 
+# Best-effort: release dynamically-provisioned storage (e.g. CSI-backed PVCs)
+# while the API server is still up. reclaimPolicy: Delete only fires when the
+# PV is deleted through the API — once the node is gone there's nothing left
+# to issue that call, so volumes would otherwise be orphaned in the provider
+# indefinitely. Failure here is non-fatal; destroy proceeds either way.
+KUBECONFIG_PATH="${HOME}/.kube/${CLUSTER}.yaml"
+if kube-kubeconfig >/dev/null 2>&1 && [[ -f "${KUBECONFIG_PATH}" ]]; then
+  echo "Deleting PersistentVolumeClaims to release dynamically-provisioned storage..."
+  KUBECONFIG="${KUBECONFIG_PATH}" kubectl delete pvc --all --all-namespaces --wait --timeout=120s \
+    || echo "Warning: PVC cleanup failed or timed out — storage volumes may be orphaned." >&2
+else
+  echo "Warning: could not reach cluster to release storage — volumes may be orphaned." >&2
+fi
+
 terragrunt destroy
