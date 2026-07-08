@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "kube-devenv Renovate config — also serves as the shared preset for kube-node and kube-examples.",
+  "description": "kube-devenv Renovate config — also serves as the shared preset for kube-compute and kube-examples.",
   "extends": [
     "config:recommended",
     ":semanticCommits",

@@ -13,25 +13,31 @@
 
   // Merge base tasks with any consumer-defined tasks-custom.json on every container start.
   // .vscode/tasks.json is gitignored — it stays up-to-date with the image.
-  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-node",
+  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-compute",
   "postStartCommand": "kube-tasks-merge",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
-    // Source ~/.kube-node/proxmox in every terminal so a token refreshed via
-    // `kube-proxmox-login` is picked up without a manual source. No-op until
-    // the token file exists.
-    "token": "grep -q '.kube-node/proxmox' ~/.bashrc || echo 'test -f /root/.kube-node/proxmox && source /root/.kube-node/proxmox' >> ~/.bashrc"
+    // Source ~/.kube-compute/proxmox{,-endpoint} in every terminal so the token
+    // (refreshed via `kube-proxmox-login`) and the PVE endpoint are picked up
+    // without a manual source. No-op until those files exist. Deliberately
+    // NOT using devcontainer.json's remoteEnv/${localEnv:...} for these —
+    // that only works if VS Code inherits your shell profile, which it does
+    // not when launched from Finder/Spotlight/Dock rather than a terminal.
+    "proxmox-env": "grep -q '.kube-compute/proxmox' ~/.bashrc || { echo 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' >> ~/.bashrc; echo 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' >> ~/.bashrc; }"
   },
 
-  // Mount host credentials read-only; .kube and .kube-node writable so
+  // Mount host credentials read-only; .kube and .kube-compute writable so
   // kube-kubeconfig / kube-proxmox-login can write.
   "mounts": [
     "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
     "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
-    // ~/.kube-node holds the Proxmox API token outside the repo tree — never
-    // in the IDE file tree or git status. Populated by `kube-proxmox-login`.
-    "source=${localEnv:HOME}/.kube-node,target=/root/.kube-node,type=bind",
+    // ~/.kube-compute holds Proxmox credentials outside the repo tree — never in
+    // the IDE file tree or git status. proxmox: the API token, rewritten by
+    // `kube-proxmox-login`. proxmox-endpoint: the PVE URL, a one-time manual
+    // `echo "export PROXMOX_VE_ENDPOINT=..." > ~/.kube-compute/proxmox-endpoint`
+    // on the host (see live/proxmox/README.md in your consumer repo).
+    "source=${localEnv:HOME}/.kube-compute,target=/root/.kube-compute,type=bind",
     // Forward the SSH agent so kube-status/kube-kubeconfig/kube-proxmox-login
     // can reach the Proxmox host.
     "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
@@ -39,12 +45,10 @@
 
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
-    "WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
-    // Proxmox: non-sensitive endpoint URL, set in your shell profile.
-    // PROXMOX_VE_API_TOKEN is NOT forwarded here — it expires after 8h and a
-    // one-time env forward can't be refreshed without a container rebuild.
-    // Run `kube-proxmox-login` instead; it's picked up via the mount above.
-    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}"
+    "WORKSPACE_FOLDER": "${containerWorkspaceFolder}"
+    // Proxmox: PROXMOX_VE_ENDPOINT and PROXMOX_VE_API_TOKEN come from
+    // ~/.kube-compute/ via the mount + postCreateCommand hook above, not from
+    // here — see the comments there for why.
     // AWS: forwarded automatically via the .aws mount above.
     // Azure: set ARM_* vars or use 'az login' inside the container.
   },

@@ -16,7 +16,7 @@ case "${NODE_PROVIDER}" in
     PROXMOX_HOST=$(proxmox_host)
     ssh -o StrictHostKeyChecking=accept-new \
         "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" \
-        "qm guest exec ${STATUS_REF} -- /bin/cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo 'not-started'"
+        "qm guest exec ${STATUS_REF} -- /bin/cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo 'not-started'"
     ;;
 
   aws)
@@ -24,7 +24,7 @@ case "${NODE_PROVIDER}" in
     aws ssm send-command \
       --instance-ids "${STATUS_REF}" \
       --document-name "AWS-RunShellScript" \
-      --parameters 'commands=["cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo not-started"]' \
+      --parameters 'commands=["cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo not-started"]' \
       --query "Command.CommandId" --output text \
       | xargs -I{} aws ssm get-command-invocation \
           --instance-id "${STATUS_REF}" --command-id {} \
@@ -39,7 +39,7 @@ case "${NODE_PROVIDER}" in
       --resource-group "${RESOURCE_GROUP}" \
       --name "${VM_NAME}" \
       --command-id RunShellScript \
-      --scripts "cat /var/log/kube-node/bootstrap-status 2>/dev/null || echo not-started" \
+      --scripts "cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo not-started" \
       --query "value[0].message" --output tsv
     ;;
 

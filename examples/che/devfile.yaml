@@ -5,7 +5,7 @@ schemaVersion: 2.2.2
 
 metadata:
   name: kube-devenv
-  displayName: kube-node developer environment
+  displayName: kube-compute developer environment
   description: OpenTofu, Terragrunt, kubectl, Helm, cloud CLIs, and operator verb-scripts.
 
 components:

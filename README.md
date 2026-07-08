@@ -4,7 +4,7 @@ Pre-built, multi-arch (`linux/amd64` + `linux/arm64`) container image providing 
 consistent, pinned toolchain for consuming and operating the kube-\* platform. Used
 by developers in VS Code devcontainers, by CI pipelines (dev/CI parity — same image
 everywhere), and by operators managing clusters provisioned with
-[kube-node](https://github.com/bbaliyan/kube-node).
+[kube-compute](https://github.com/bbaliyan/kube-compute).
 
 ## What's inside
 
@@ -12,7 +12,7 @@ everywhere), and by operators managing clusters provisioned with
 |---|---|
 | `tofu` | OpenTofu — IaC provisioning |
 | `terragrunt` | Terragrunt — DRY wrapper + state management |
-| `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-node) |
+| `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-compute) |
 | `helm` | Helm package manager |
 | `aws` | AWS CLI v2 |
 | `az` | Azure CLI |
@@ -65,29 +65,40 @@ against supply chain attacks where a compromised registry rewrites a tag.
   // renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
   "image": "ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
   "name": "my-project",
-  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-node",
+  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-compute",
   "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
-    "token": "grep -q '.kube-node/proxmox' ~/.bashrc || echo 'test -f /root/.kube-node/proxmox && source /root/.kube-node/proxmox' >> ~/.bashrc"
+    "proxmox-env": "grep -q '.kube-compute/proxmox' ~/.bashrc || { echo 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' >> ~/.bashrc; echo 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' >> ~/.bashrc; }"
   },
   "mounts": [
     "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
     "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
-    "source=${localEnv:HOME}/.kube-node,target=/root/.kube-node,type=bind",
+    "source=${localEnv:HOME}/.kube-compute,target=/root/.kube-compute,type=bind",
     "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
   ],
   "remoteEnv": {
-    "SSH_AUTH_SOCK": "/ssh-agent",
-    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}"
+    "SSH_AUTH_SOCK": "/ssh-agent"
   },
   "remoteUser": "root"
 }
 ```
 
-Proxmox token: run `kube-proxmox-login` at the start of each session (the token expires
-after 8h) — see the [proxmox verb-script table](#operator-verb-scripts) below.
+Proxmox setup (one-time, on your host — not in the container):
+
+```bash
+mkdir -p ~/.kube-compute
+echo "export PROXMOX_VE_ENDPOINT='https://pve.local:8006'" > ~/.kube-compute/proxmox-endpoint
+```
+
+`~/.kube-compute` is mounted and auto-sourced in every terminal (see `postCreateCommand`
+above), so this survives container rebuilds and works regardless of whether VS Code was
+launched from a terminal or from Finder/Spotlight/Dock — unlike forwarding
+`PROXMOX_VE_ENDPOINT` via `remoteEnv`/`${localEnv:...}`, which silently does nothing in
+the GUI-launch case. Then run `kube-proxmox-login` at the start of each session for the
+token (expires after 8h) — see the [proxmox verb-script table](#operator-verb-scripts)
+below.
 
 A fuller example with VS Code extension recommendations is in
 [`examples/vscode/devcontainer.json`](https://github.com/bbaliyan/kube-devenv/blob/main/examples/vscode/devcontainer.json).
@@ -139,7 +150,7 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:0.1.5 bash -c "
 
 ## Version compatibility
 
-The image's `kubectl` minor tracks `k8s_version` in kube-node (Kubernetes ±1 skew
+The image's `kubectl` minor tracks `k8s_version` in kube-compute (Kubernetes ±1 skew
 policy). On container start the banner prints:
 
 ```
@@ -149,7 +160,7 @@ kube-devenv 0.1.5 · kubectl 1.36.x · tofu 1.12.x · targets k8s 1.36
 ## Renovate
 
 All tool versions in the `Dockerfile` are managed by Renovate. The `renovate.json` in
-this repo also serves as the **shared preset** for kube-node and kube-examples:
+this repo also serves as the **shared preset** for kube-compute and kube-examples:
 
 ```json
 { "extends": ["github>bbaliyan/kube-devenv"] }

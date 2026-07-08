@@ -21,6 +21,8 @@ proxmox_host() {
   host=$(echo "${PROXMOX_VE_ENDPOINT:-}" | sed 's|https\?://||;s|:.*||')
   if [[ -z "${host}" ]]; then
     echo "Error: PROXMOX_VE_ENDPOINT is not set." >&2
+    echo "  Put 'export PROXMOX_VE_ENDPOINT=...' in ~/.kube-compute/proxmox-endpoint" >&2
+    echo "  (auto-sourced in every terminal) — see live/proxmox/README.md." >&2
     exit 1
   fi
   echo "${host}"

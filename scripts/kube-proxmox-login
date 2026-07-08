@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kube-proxmox-login — refresh the short-lived Proxmox API token (8h TTL).
-# Equivalent to `aws sso login` for Proxmox: reissues the tofu@pam!kube-node
-# token over SSH and rewrites ~/.kube-node/proxmox. Requires the tofu user,
+# Equivalent to `aws sso login` for Proxmox: reissues the tofu@pam!kube-compute
+# token over SSH and rewrites ~/.kube-compute/proxmox. Requires the tofu user,
 # role, and token to already exist — see live/proxmox/README.md
 # "One-time: user and token setup" for the initial setup this refreshes.
 set -euo pipefail
@@ -14,15 +14,15 @@ echo "Refreshing Proxmox API token on ${PROXMOX_HOST}..." >&2
 SECRET=$(ssh -o StrictHostKeyChecking=accept-new "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" bash -s <<'REMOTE'
 set -euo pipefail
 set +H
-pveum user token delete tofu@pam kube-node >/dev/null 2>&1 || true
+pveum user token delete tofu@pam kube-compute >/dev/null 2>&1 || true
 EXPIRY=$(( $(date +%s) + 28800 ))
-SECRET=$(pveum user token add tofu@pam kube-node \
-  --comment "kube-node OpenTofu provider" \
+SECRET=$(pveum user token add tofu@pam kube-compute \
+  --comment "kube-compute OpenTofu provider" \
   --expire "$EXPIRY" \
   --output-format json \
   | python3 -c "import json,sys; print(json.load(sys.stdin)[\"value\"])")
 # Re-apply the token ACL — Proxmox removes it when the token is deleted.
-pveum aclmod / --tokens 'tofu@pam!kube-node' --role KubeNode >&2
+pveum aclmod / --tokens 'tofu@pam!kube-compute' --role KubeCompute >&2
 echo "$SECRET"
 REMOTE
 ) || {
@@ -30,9 +30,9 @@ REMOTE
   exit 1
 }
 
-mkdir -p "${HOME}/.kube-node"
-TOKEN_FILE="${HOME}/.kube-node/proxmox"
-echo "export PROXMOX_VE_API_TOKEN='tofu@pam!kube-node=${SECRET}'" > "${TOKEN_FILE}"
+mkdir -p "${HOME}/.kube-compute"
+TOKEN_FILE="${HOME}/.kube-compute/proxmox"
+echo "export PROXMOX_VE_API_TOKEN='tofu@pam!kube-compute=${SECRET}'" > "${TOKEN_FILE}"
 chmod 600 "${TOKEN_FILE}"
 
 echo "Token refreshed (valid 8h). Written to ${TOKEN_FILE}"
