@@ -2,24 +2,16 @@
 # kube-shell — break-glass shell session on the node. No inbound port required.
 # Run from the cluster directory (live/<provider>/clusters/<name>/).
 set -euo pipefail
+source kube-common.sh
 
-OUTPUTS=$(terragrunt output -json) || {
-  echo "Error: 'terragrunt output' failed (see error above) — common causes:" >&2
-  echo "  wrong directory, expired AWS credentials, or no state applied yet." >&2
-  exit 1
-}
-
-NODE_PROVIDER=$(echo "${OUTPUTS}" | jq -r '.node_provider.value')
-STATUS_REF=$(echo "${OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+terragrunt_outputs
+NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
+STATUS_REF=$(echo "${TF_OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
 
 case "${NODE_PROVIDER}" in
 
   proxmox)
-    PROXMOX_HOST=$(echo "${PROXMOX_VE_ENDPOINT:-}" | sed 's|https\?://||;s|:.*||')
-    if [[ -z "${PROXMOX_HOST}" ]]; then
-      echo "Error: PROXMOX_VE_ENDPOINT is not set." >&2
-      exit 1
-    fi
+    PROXMOX_HOST=$(proxmox_host)
     echo "Opening shell on VM ${STATUS_REF} via qm terminal (Ctrl+O to exit)..."
     ssh -t "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "qm terminal ${STATUS_REF}"
     ;;
@@ -30,7 +22,7 @@ case "${NODE_PROVIDER}" in
     ;;
 
   azure)
-    RESOURCE_GROUP=$(echo "${OUTPUTS}" | jq -r '.resource_group_name.value')
+    RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
     VM_NAME=$(basename "${STATUS_REF}")
     echo "Starting Azure run-command shell on ${VM_NAME}..."
     echo "(Azure run-command is non-interactive — use 'az serial-console' for a live session)"
