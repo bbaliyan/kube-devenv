@@ -39,8 +39,31 @@ if [[ $# -eq 0 ]]; then
     exit 1
   fi
 
+  # If a cluster is already selected, put it first so it's the default fzf
+  # cursor position (pressing Enter with no input re-selects it) instead of
+  # forgetting the previous choice every time the picker opens.
+  CURRENT=""
+  if [[ -f "${PERSIST_FILE}" ]]; then
+    CURRENT="$(cat "${PERSIST_FILE}")"
+    CURRENT="${CURRENT#"${WORKSPACE}"/}"
+  fi
+  if [[ -n "${CURRENT}" ]]; then
+    for c in "${CLUSTERS[@]}"; do
+      if [[ "${c}" == "${CURRENT}" ]]; then
+        REORDERED=("${CURRENT}")
+        for c2 in "${CLUSTERS[@]}"; do
+          [[ "${c2}" != "${CURRENT}" ]] && REORDERED+=("${c2}")
+        done
+        CLUSTERS=("${REORDERED[@]}")
+        break
+      fi
+    done
+  fi
+
   TARGET=$(printf '%s\n' "${CLUSTERS[@]}" \
-    | fzf --prompt="Select cluster: " --height=10 --border) || {
+    | fzf --prompt="Select cluster: " --height=10 --border \
+          --header="${CURRENT:+current: ${CURRENT}}" \
+          --bind='left-click:accept') || {
     echo "No cluster selected." >&2
     exit 1
   }
