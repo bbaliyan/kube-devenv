@@ -25,7 +25,10 @@ fi
 
 if [[ $# -eq 0 ]]; then
   mapfile -t CLUSTERS < <(
-    find "${WORKSPACE}/live" -path "*/clusters/*/terragrunt.hcl" -print 2>/dev/null \
+    find "${WORKSPACE}/live" -path "*/clusters/*/terragrunt.hcl" \
+      -not -path "*/.terragrunt-cache/*" \
+      -not -path "*/.terraform/*" \
+      -print 2>/dev/null \
       | sed "s|${WORKSPACE}/||" \
       | sed 's|/terragrunt.hcl$||' \
       | sort

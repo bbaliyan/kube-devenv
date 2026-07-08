@@ -16,6 +16,13 @@
       "problemMatcher": []
     },
     {
+      "label": "$(key) Proxmox Login",
+      "type": "shell",
+      "command": "kube-proxmox-login",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
       "label": "$(run-all) Init",
       "type": "shell",
       "command": "kube-run kube-init",

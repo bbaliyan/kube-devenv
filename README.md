@@ -33,16 +33,20 @@ Installed to `/usr/local/bin/`. Run from the cluster directory
 (`live/<provider>/clusters/<name>/`):
 
 ```
-kube-init         terragrunt init
-kube-plan         terragrunt plan
-kube-apply        terragrunt apply
-kube-status       read bootstrap status (no inbound port: SSM / run-command / qm guest exec)
-kube-watch        poll kube-status until complete or timeout
-kube-kubeconfig   fetch kubeconfig and write to ~/.kube/<cluster>.yaml
-kube-secrets      print in-cluster secrets (ArgoCD admin password, etc.)
-kube-shell        break-glass shell (SSM session / qm terminal / az serial-console)
-kube-destroy      destroy cluster (requires typing the cluster name)
-select-cluster    set CLUSTER_DIR in the calling shell
+kube-init            terragrunt init
+kube-plan            terragrunt plan
+kube-apply           terragrunt apply (requires typing the cluster name)
+kube-status          read bootstrap status (no inbound port: SSM / run-command / qm guest exec)
+kube-watch           poll kube-status until complete or timeout
+kube-kubeconfig      fetch kubeconfig and write to ~/.kube/<cluster>.yaml
+kube-secrets         print in-cluster secrets (ArgoCD admin password, etc.)
+kube-shell           break-glass shell (SSM session / qm terminal / az serial-console)
+kube-start           start a stopped node (EC2 / Azure VM / Proxmox VM)
+kube-destroy         destroy cluster (requires typing the cluster name)
+kube-proxmox-login   refresh the 8h Proxmox API token over SSH (Proxmox only)
+select-cluster       pick and persist the active cluster directory
+kube-run             cd to the selected cluster directory and run a kube-* verb
+kube-tasks-merge     merge base tasks.json with a consumer's tasks-custom.json
 ```
 
 ## Using this image
@@ -61,23 +65,29 @@ against supply chain attacks where a compromised registry rewrites a tag.
   // renovate: datasource=docker depName=ghcr.io/bbaliyan/kube-devenv
   "image": "ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
   "name": "my-project",
-  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age",
+  "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-node",
   "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
-  "postCreateCommand": "pre-commit install || true",
+  "postCreateCommand": {
+    "pre-commit": "pre-commit install || true",
+    "token": "grep -q '.kube-node/proxmox' ~/.bashrc || echo 'test -f /root/.kube-node/proxmox && source /root/.kube-node/proxmox' >> ~/.bashrc"
+  },
   "mounts": [
     "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind",
     "source=${localEnv:HOME}/.config/age,target=/root/.config/age,type=bind,readonly",
+    "source=${localEnv:HOME}/.kube-node,target=/root/.kube-node,type=bind",
     "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
   ],
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
-    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}",
-    "PROXMOX_VE_API_TOKEN": "${localEnv:PROXMOX_VE_API_TOKEN}"
+    "PROXMOX_VE_ENDPOINT": "${localEnv:PROXMOX_VE_ENDPOINT}"
   },
   "remoteUser": "root"
 }
 ```
+
+Proxmox token: run `kube-proxmox-login` at the start of each session (the token expires
+after 8h) — see the [proxmox verb-script table](#operator-verb-scripts) below.
 
 A fuller example with VS Code extension recommendations is in
 [`examples/vscode/devcontainer.json`](https://github.com/bbaliyan/kube-devenv/blob/main/examples/vscode/devcontainer.json).
@@ -122,7 +132,8 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:0.1.5 bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
   helm version && aws --version && az --version &&
   sops --version && age --version && gitleaks version &&
-  trivy --version && cosign version
+  trivy --version && cosign version && shfmt --version && yamlfmt --version &&
+  fzf --version && session-manager-plugin --version
 "
 ```
 

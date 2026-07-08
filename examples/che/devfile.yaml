@@ -21,6 +21,20 @@ components:
           value: v0.1.0
 
 commands:
+  - id: kube-start
+    exec:
+      label: "kube: start node"
+      component: tools
+      commandLine: kube-start
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-proxmox-login
+    exec:
+      label: "kube: proxmox login"
+      component: tools
+      commandLine: kube-proxmox-login
+      workingDir: ${CLUSTER_DIR:-/projects}
+
   - id: kube-init
     exec:
       label: "kube: init"
@@ -61,6 +75,20 @@ commands:
       label: "kube: fetch kubeconfig"
       component: tools
       commandLine: kube-kubeconfig
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-secrets
+    exec:
+      label: "kube: secrets"
+      component: tools
+      commandLine: kube-secrets
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-shell
+    exec:
+      label: "kube: shell"
+      component: tools
+      commandLine: kube-shell
       workingDir: ${CLUSTER_DIR:-/projects}
 
   - id: kube-destroy
