@@ -24,9 +24,12 @@ case "${NODE_PROVIDER}" in
     ;;
 
   proxmox)
+    # qm is root-only on PVE (not an ACL grant tofu can be given — it talks
+    # to pmxcfs directly), so this uses the same root SSH access as
+    # kube-proxmox-login, not the tofu ops user.
     PROXMOX_HOST=$(proxmox_host)
     echo "Starting Proxmox VM ${STATUS_REF}..."
-    ssh "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "/usr/sbin/qm start ${STATUS_REF}"
+    ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm start ${STATUS_REF}"
     ;;
 
   *)

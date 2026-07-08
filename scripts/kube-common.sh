@@ -28,6 +28,14 @@ proxmox_host() {
   echo "${host}"
 }
 
+# proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
+# (not the PVE host). Defaults match live/proxmox/README.md's Part 2 setup:
+# the id_ed25519_kube_cluster key, ubuntu user. Requires port 22 open to the
+# node (ingress_ports) — off by default, since the project's baseline design
+# has no inbound SSH to nodes; Proxmox consumers opt into it explicitly.
+proxmox_vm_ssh_key() { echo "${PROXMOX_VM_SSH_KEY:-${HOME}/.ssh/id_ed25519_kube_cluster}"; }
+proxmox_vm_ssh_user() { echo "${PROXMOX_VM_SSH_USER:-ubuntu}"; }
+
 # rewrite_kubeconfig <server> <cluster_name> — read a k3s kubeconfig on stdin,
 # swap the loopback server for <server> and the default context/cluster/user
 # name for <cluster_name>, write to stdout.

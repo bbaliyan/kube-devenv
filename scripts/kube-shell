@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# kube-shell — break-glass shell session on the node. No inbound port required.
+# kube-shell — break-glass shell session on the node.
+# AWS/Azure use an inbound-port-free control-plane primitive (SSM /
+# run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
+# the node — see live/proxmox/README.md).
 # Run from the cluster directory (live/<provider>/clusters/<name>/).
 set -euo pipefail
 source kube-common.sh
@@ -11,9 +14,11 @@ STATUS_REF=$(echo "${TF_OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
 case "${NODE_PROVIDER}" in
 
   proxmox)
-    PROXMOX_HOST=$(proxmox_host)
-    echo "Opening shell on VM ${STATUS_REF} via qm terminal (Ctrl+O to exit)..."
-    ssh -t "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "/usr/sbin/qm terminal ${STATUS_REF}"
+    CLUSTER_IP=$(echo "${TF_OUTPUTS}" | jq -r '.cluster_ip.value')
+    VM_SSH_KEY=$(proxmox_vm_ssh_key)
+    VM_SSH_USER=$(proxmox_vm_ssh_user)
+    echo "Opening shell on ${CLUSTER_IP} as ${VM_SSH_USER}..."
+    ssh -i "${VM_SSH_KEY}" -t -o StrictHostKeyChecking=accept-new "${VM_SSH_USER}@${CLUSTER_IP}"
     ;;
 
   aws)

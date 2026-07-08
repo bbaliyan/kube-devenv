@@ -36,12 +36,12 @@ Installed to `/usr/local/bin/`. Run from the cluster directory
 kube-init            terragrunt init
 kube-plan            terragrunt plan
 kube-apply           terragrunt apply (requires typing the cluster name)
-kube-status          read bootstrap status (no inbound port: SSM / run-command / qm guest exec)
+kube-status          read bootstrap status (SSM / run-command, no inbound port; SSH for Proxmox)
 kube-watch           poll kube-status until complete or timeout
 kube-kubeconfig      fetch kubeconfig and write to ~/.kube/<cluster>.yaml
 kube-secrets         print in-cluster secrets (ArgoCD admin password, etc.)
-kube-shell           break-glass shell (SSM session / qm terminal / az serial-console)
-kube-start           start a stopped node (EC2 / Azure VM / Proxmox VM)
+kube-shell           break-glass shell (SSM session / az serial-console, no inbound port; SSH for Proxmox)
+kube-start           start a stopped node (EC2 / Azure VM / Proxmox VM via qm, root SSH to PVE host)
 kube-destroy         destroy cluster (requires typing the cluster name)
 kube-proxmox-login   refresh the 8h Proxmox API token over SSH (Proxmox only)
 select-cluster       pick and persist the active cluster directory
