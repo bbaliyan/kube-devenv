@@ -17,13 +17,15 @@
   "postStartCommand": "kube-tasks-merge",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
-    // Source ~/.kube-compute/proxmox{,-endpoint} in every terminal so the token
-    // (refreshed via `kube-proxmox-login`) and the PVE endpoint are picked up
-    // without a manual source. No-op until those files exist. Deliberately
-    // NOT using devcontainer.json's remoteEnv/${localEnv:...} for these —
-    // that only works if VS Code inherits your shell profile, which it does
-    // not when launched from Finder/Spotlight/Dock rather than a terminal.
-    "proxmox-env": "grep -q '.kube-compute/proxmox' ~/.bashrc || { echo 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' >> ~/.bashrc; echo 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' >> ~/.bashrc; }"
+    // Write a loader script for the token (refreshed via `kube-proxmox-login`)
+    // and PVE endpoint, and wire it into every shell context: ~/.bashrc for
+    // interactive terminals, and BASH_ENV (below) for non-interactive ones —
+    // notably VS Code Tasks, which run as `bash -c '...'` and do NOT source
+    // ~/.bashrc at all. Deliberately NOT using devcontainer.json's remoteEnv/
+    // ${localEnv:...} for these values — that only works if VS Code inherits
+    // your shell profile, which it does not when launched from Finder/
+    // Spotlight/Dock rather than a terminal.
+    "proxmox-env": "printf '%s\\n' 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' > /etc/kube-compute-env.sh && grep -q 'kube-compute-env.sh' ~/.bashrc || echo 'source /etc/kube-compute-env.sh' >> ~/.bashrc"
   },
 
   // Mount host credentials read-only; .kube and .kube-compute writable so
@@ -45,7 +47,13 @@
 
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
-    "WORKSPACE_FOLDER": "${containerWorkspaceFolder}"
+    "WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
+    // Makes non-interactive bash invocations (VS Code Tasks run as
+    // `bash -c '...'`) also source the credentials loader written by
+    // postCreateCommand above — bash only reads BASH_ENV for non-interactive
+    // shells, so this doesn't double-source for interactive terminals (they
+    // get it via ~/.bashrc instead).
+    "BASH_ENV": "/etc/kube-compute-env.sh"
     // Proxmox: PROXMOX_VE_ENDPOINT and PROXMOX_VE_API_TOKEN come from
     // ~/.kube-compute/ via the mount + postCreateCommand hook above, not from
     // here — see the comments there for why.

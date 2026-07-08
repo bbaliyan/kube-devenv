@@ -69,7 +69,7 @@ against supply chain attacks where a compromised registry rewrites a tag.
   "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
-    "proxmox-env": "grep -q '.kube-compute/proxmox' ~/.bashrc || { echo 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' >> ~/.bashrc; echo 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' >> ~/.bashrc; }"
+    "proxmox-env": "printf '%s\\n' 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' > /etc/kube-compute-env.sh && grep -q 'kube-compute-env.sh' ~/.bashrc || echo 'source /etc/kube-compute-env.sh' >> ~/.bashrc"
   },
   "mounts": [
     "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,readonly",
@@ -79,7 +79,8 @@ against supply chain attacks where a compromised registry rewrites a tag.
     "source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
   ],
   "remoteEnv": {
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    "BASH_ENV": "/etc/kube-compute-env.sh"
   },
   "remoteUser": "root"
 }
@@ -92,9 +93,10 @@ mkdir -p ~/.kube-compute
 echo "export PROXMOX_VE_ENDPOINT='https://pve.local:8006'" > ~/.kube-compute/proxmox-endpoint
 ```
 
-`~/.kube-compute` is mounted and auto-sourced in every terminal (see `postCreateCommand`
-above), so this survives container rebuilds and works regardless of whether VS Code was
-launched from a terminal or from Finder/Spotlight/Dock — unlike forwarding
+`~/.kube-compute` is mounted and auto-sourced in every terminal — and in VS Code Tasks,
+which run as `bash -c '...'` and don't source `~/.bashrc` at all, hence the `BASH_ENV`
+above — so this survives container rebuilds and works regardless of whether VS Code was
+launched from a terminal or from Finder/Spotlight/Dock, unlike forwarding
 `PROXMOX_VE_ENDPOINT` via `remoteEnv`/`${localEnv:...}`, which silently does nothing in
 the GUI-launch case. Then run `kube-proxmox-login` at the start of each session for the
 token (expires after 8h) — see the [proxmox verb-script table](#operator-verb-scripts)
