@@ -4,7 +4,7 @@
 set -euo pipefail
 
 CLUSTER=$(basename "$(pwd)")
-echo "WARNING: this will destroy cluster '${CLUSTER}' and all its resources."
+echo "About to destroy cluster '${CLUSTER}' and all its resources."
 echo -n "Type the cluster name to confirm: "
 read -r CONFIRM
 

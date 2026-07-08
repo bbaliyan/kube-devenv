@@ -34,7 +34,13 @@ jq -s '
   .[0] as $base |
   {
     version: $base.version,
-    tasks: ([.[].tasks // []] | add),
+    tasks: (
+      [.[].tasks // []] | add
+      # Dedupe by label, later files win — lets a consumer task override a
+      # base task by reusing its label. Original position is preserved.
+      | reduce .[] as $t ({}; . + {($t.label): $t})
+      | [.[]]
+    ),
     inputs: ([.[].inputs // []] | add)
   }
   | if .inputs == [] then del(.inputs) else . end

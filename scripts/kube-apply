@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
-# kube-apply — terragrunt apply for the selected cluster.
+# kube-apply — terragrunt apply for the selected cluster (typed confirmation, auto-approved).
+# -auto-approve skips terragrunt's own plan-diff prompt — run 'kube-plan' first
+# to review changes.
 # Run from the cluster directory (live/<provider>/clusters/<name>/).
 set -euo pipefail
-terragrunt apply "$@"
+
+CLUSTER=$(basename "$(pwd)")
+echo "About to apply cluster '${CLUSTER}'."
+echo -n "Type the cluster name to confirm: "
+read -r CONFIRM
+
+if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
+  echo "Confirmation did not match. Aborting." >&2
+  exit 1
+fi
+
+terragrunt apply -auto-approve "$@"
