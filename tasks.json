@@ -30,23 +30,9 @@
       "problemMatcher": []
     },
     {
-      "label": "$(cloud-upload) Plan",
-      "type": "shell",
-      "command": "kube-run kube-plan",
-      "presentation": { "reveal": "always", "panel": "dedicated" },
-      "problemMatcher": []
-    },
-    {
       "label": "$(play) Apply",
       "type": "shell",
       "command": "kube-run kube-apply",
-      "presentation": { "reveal": "always", "panel": "dedicated" },
-      "problemMatcher": []
-    },
-    {
-      "label": "$(pulse) Status",
-      "type": "shell",
-      "command": "kube-run kube-status",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },

@@ -69,7 +69,6 @@
         "hashicorp.terraform",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
         "redhat.vscode-yaml",
-        "mhutchie.git-graph",
         "actboy168.tasks",
         "foxundermoon.shell-format"
       ],
