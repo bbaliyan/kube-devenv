@@ -26,7 +26,7 @@ case "${NODE_PROVIDER}" in
   proxmox)
     PROXMOX_HOST=$(proxmox_host)
     echo "Starting Proxmox VM ${STATUS_REF}..."
-    ssh "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "qm start ${STATUS_REF}"
+    ssh "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "/usr/sbin/qm start ${STATUS_REF}"
     ;;
 
   *)

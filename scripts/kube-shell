@@ -13,7 +13,7 @@ case "${NODE_PROVIDER}" in
   proxmox)
     PROXMOX_HOST=$(proxmox_host)
     echo "Opening shell on VM ${STATUS_REF} via qm terminal (Ctrl+O to exit)..."
-    ssh -t "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "qm terminal ${STATUS_REF}"
+    ssh -t "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" "/usr/sbin/qm terminal ${STATUS_REF}"
     ;;
 
   aws)

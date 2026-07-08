@@ -16,7 +16,7 @@ case "${NODE_PROVIDER}" in
     PROXMOX_HOST=$(proxmox_host)
     ssh -o StrictHostKeyChecking=accept-new \
         "${PROXMOX_SSH_USER:-tofu}@${PROXMOX_HOST}" \
-        "qm guest exec ${STATUS_REF} -- /bin/cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo 'not-started'"
+        "/usr/sbin/qm guest exec ${STATUS_REF} -- /bin/cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo 'not-started'"
     ;;
 
   aws)
