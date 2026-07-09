@@ -12,7 +12,8 @@ on:
 permissions:
   contents: write        # required to create the GitHub Release
   packages: write
-  id-token: write        # required for cosign keyless signing
+  id-token: write        # required for keyless signing behind the attestation actions below
+  attestations: write    # required to publish to this repo's Attestations page
   security-events: write # required for Trivy SARIF upload to Security tab
 
 jobs:
@@ -55,12 +56,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             KUBE_DEVENV_VERSION=${{ steps.meta.outputs.version }}
-          # Native buildx SBOM + provenance attestations — the format GHCR's
-          # package page reads to render its own "SBOM" / "Provenance" tabs
-          # (what software + versions are in the image), distinct from the
-          # Trivy SARIF scan below (whether that software has known CVEs).
-          provenance: true
-          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -88,16 +83,35 @@ jobs:
         with:
           sarif_file: trivy.sarif
 
-      # cosign keyless signing (requires id-token: write above). SBOM/provenance
-      # attestations are handled natively by build-push-action above, not here.
-      - name: Sign image with cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v3
-      - name: Sign
+      # GitHub's native Artifact Attestations, not raw cosign: GHCR doesn't
+      # implement the OCI Referrers API, so cosign-attached or buildx-native
+      # (provenance:true/sbom:true) attestations have nowhere to surface —
+      # they're invisible in any UI and only reachable via raw digest lookups.
+      # actions/attest-* instead publish to GitHub's own Attestations store
+      # (visible at /attestations on this repo) and verify with a plain
+      # `gh attestation verify oci://ghcr.io/... --owner bbaliyan` — no need
+      # to know Fulcio issuer URLs or identity regexes. Reuses Trivy (already
+      # installed above) to generate the SBOM these get built from.
+      - name: Generate SBOM
         if: github.event_name != 'pull_request'
         run: |
-          cosign sign --yes \
+          trivy image --format spdx-json --output sbom.spdx.json \
             ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/kube-devenv
+          subject-digest: ${{ steps.build.outputs.digest }}
+
+      - name: Attest SBOM
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/kube-devenv
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom.spdx.json
 
       # Only runs for an actual tag push (this workflow's only non-PR trigger),
       # and only once everything above has succeeded — a Release is the
