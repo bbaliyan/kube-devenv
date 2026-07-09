@@ -3,8 +3,9 @@
 # Run from the cluster directory (live/<provider>/clusters/<name>/).
 set -euo pipefail
 
-CLUSTER=$(basename "$(pwd)")
-echo "About to destroy cluster '${CLUSTER}' and all its resources."
+CLUSTER_DIR="$(pwd)"
+CLUSTER=$(basename "${CLUSTER_DIR}")
+echo "About to destroy: ${CLUSTER_DIR}"
 echo -n "Type the cluster name to confirm: "
 read -r CONFIRM
 
