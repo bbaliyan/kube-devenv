@@ -10,7 +10,7 @@ on:
       - tasks.json
 
 permissions:
-  contents: read
+  contents: write        # required to create the GitHub Release
   packages: write
   id-token: write        # required for cosign keyless signing
   security-events: write # required for Trivy SARIF upload to Security tab
@@ -98,3 +98,12 @@ jobs:
         run: |
           cosign sign --yes \
             ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
+
+      # Only runs for an actual tag push (this workflow's only non-PR trigger),
+      # and only once everything above has succeeded — a Release is the
+      # "this build is good" stamp, not something to create on a partial run.
+      - name: Create GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
