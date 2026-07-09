@@ -6,7 +6,7 @@ set -euo pipefail
 CLUSTER_DIR="$(pwd)"
 CLUSTER=$(basename "${CLUSTER_DIR}")
 echo "About to destroy: ${CLUSTER_DIR}"
-echo -n "Type the cluster name to confirm: "
+echo -n "Type '${CLUSTER}' to confirm: "
 read -r CONFIRM
 
 if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then

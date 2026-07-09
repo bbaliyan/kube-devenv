@@ -6,6 +6,5 @@ source kube-common.sh
 
 CLUSTER_DIR=$(selected_cluster_dir)
 
-echo "→ ${CLUSTER_DIR}"
 cd "${CLUSTER_DIR}"
 exec "$@"
