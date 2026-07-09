@@ -18,12 +18,12 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-init` | `terragrunt init` |
 | `kube-plan` | `terragrunt plan` |
 | `kube-apply` | `terragrunt apply` (requires typing the cluster name) |
+| `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. |
 | `kube-status` | Read bootstrap status (SSM / Azure run-command, no inbound port; SSH for Proxmox). |
 | `kube-watch` | Poll `kube-status` until it reports complete or times out. |
 | `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
 | `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
 | `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. |
-| `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). |
 | `kube-destroy` | `terragrunt destroy` (requires typing the cluster name). |
 | `kube-proxmox-login` | Refresh the 8h Proxmox API token over SSH. Proxmox-only; called internally by `kube-cloud-login`, or run directly. |
 | `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. |

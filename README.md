@@ -79,10 +79,10 @@ Typical order of use, top to bottom:
 | Task | Purpose |
 |---|---|
 | **Select Cluster** | Pick which `live/<provider>/clusters/<name>/` directory the other tasks act on. Run this first — everything below operates on whatever's selected. |
-| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM) before doing anything else with it. |
-| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. |
+| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. Run this before anything below — Init and Start Node both need it. |
 | **Init** | `terragrunt init` for the selected cluster. |
 | **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
+| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
 | **Watch** | Poll bootstrap status until the node reports complete (or times out). |
 | **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
 | **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |

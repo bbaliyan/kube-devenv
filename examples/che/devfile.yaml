@@ -21,13 +21,6 @@ components:
           value: v0.1.0
 
 commands:
-  - id: kube-start
-    exec:
-      label: "kube: start node"
-      component: tools
-      commandLine: kube-start
-      workingDir: ${CLUSTER_DIR:-/projects}
-
   - id: kube-cloud-login
     exec:
       label: "kube: cloud login"
@@ -47,6 +40,13 @@ commands:
       label: "kube: apply"
       component: tools
       commandLine: kube-apply
+      workingDir: ${CLUSTER_DIR:-/projects}
+
+  - id: kube-start
+    exec:
+      label: "kube: start node"
+      component: tools
+      commandLine: kube-start
       workingDir: ${CLUSTER_DIR:-/projects}
 
   - id: kube-watch

@@ -9,13 +9,6 @@
       "problemMatcher": []
     },
     {
-      "label": "$(debug-start) Start Node",
-      "type": "shell",
-      "command": "kube-run kube-start",
-      "presentation": { "reveal": "always", "panel": "dedicated" },
-      "problemMatcher": []
-    },
-    {
       "label": "$(key) Cloud Login",
       "type": "shell",
       "command": "kube-cloud-login",
@@ -33,6 +26,14 @@
       "label": "$(play) Apply",
       "type": "shell",
       "command": "kube-run kube-apply",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(debug-start) Start Node",
+      "detail": "Only needed when resuming a previously stopped cluster — skip for a brand-new apply.",
+      "type": "shell",
+      "command": "kube-run kube-start",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
