@@ -54,6 +54,27 @@ kube-run             cd to the selected cluster directory and run a kube-* verb
 kube-tasks-merge     merge base tasks.json with a consumer's tasks-custom.json
 ```
 
+## VS Code Tasks
+
+Same operations as the verb-scripts above, exposed as clickable buttons (Command
+Palette → **Tasks: Run Task**, or the status bar if you have the
+[Task Explorer / Tasks button](https://marketplace.visualstudio.com/items?itemName=actboy168.tasks)
+extension). Installed automatically to `.vscode/tasks.json` on container start — see
+[`tasks.json`](tasks.json). Typical order of use, top to bottom:
+
+| Task | Purpose |
+|---|---|
+| **Select Cluster** | Pick which `live/<provider>/clusters/<name>/` directory the other tasks act on. Run this first — everything below operates on whatever's selected. |
+| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM) before doing anything else with it. |
+| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. |
+| **Init** | `terragrunt init` for the selected cluster. |
+| **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
+| **Watch** | Poll bootstrap status until the node reports complete (or times out). |
+| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
+| **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
+| **Shell** | Break-glass shell session on the node, no inbound port required. |
+| **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
+
 ## Using this image
 
 ### VS Code devcontainer (recommended)
