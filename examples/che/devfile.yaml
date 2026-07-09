@@ -28,11 +28,11 @@ commands:
       commandLine: kube-start
       workingDir: ${CLUSTER_DIR:-/projects}
 
-  - id: kube-login
+  - id: kube-cloud-login
     exec:
-      label: "kube: login"
+      label: "kube: cloud login"
       component: tools
-      commandLine: kube-login
+      commandLine: kube-cloud-login
       workingDir: ${CLUSTER_DIR:-/projects}
 
   - id: kube-init

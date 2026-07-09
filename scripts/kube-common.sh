@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # kube-common.sh — shared helpers for the provider-dispatch verb-scripts
-# (kube-status, kube-shell, kube-kubeconfig, kube-start, kube-run, kube-login).
-# Sourced, not run directly: `source kube-common.sh` (found via PATH like the
-# other scripts).
+# (kube-status, kube-shell, kube-kubeconfig, kube-start, kube-run,
+# kube-cloud-login). Sourced, not run directly: `source kube-common.sh`
+# (found via PATH like the other scripts).
 
 # selected_cluster_dir — resolve the persisted 'Select Cluster' choice to an
 # absolute path, or exit with a clear error. Echoes the path on success.

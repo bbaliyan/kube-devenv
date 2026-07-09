@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kube-login — authenticate (or refresh a short-lived session) against the
+# kube-cloud-login — authenticate (or refresh a short-lived session) against the
 # selected cluster's cloud provider: AWS SSO, Azure CLI, or a Proxmox API
 # token refresh over SSH.
 #

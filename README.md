@@ -43,12 +43,12 @@ kube-secrets         print in-cluster secrets (ArgoCD admin password, etc.)
 kube-shell           break-glass shell (SSM session / az serial-console, no inbound port; SSH for Proxmox)
 kube-start           start a stopped node (EC2 / Azure VM / Proxmox VM via qm, root SSH to PVE host)
 kube-destroy         destroy cluster (requires typing the cluster name)
-kube-login           authenticate against the selected cluster's provider
+kube-cloud-login     authenticate against the selected cluster's provider
                       (aws sso login / az login / Proxmox token refresh —
                       provider inferred from the cluster's live/<provider>/
                       path, so it works before terragrunt init)
 kube-proxmox-login   refresh the 8h Proxmox API token over SSH (Proxmox only;
-                      called by kube-login, or run directly)
+                      called by kube-cloud-login, or run directly)
 select-cluster       pick and persist the active cluster directory
 kube-run             cd to the selected cluster directory and run a kube-* verb
 kube-tasks-merge     merge base tasks.json with a consumer's tasks-custom.json

@@ -16,9 +16,9 @@
       "problemMatcher": []
     },
     {
-      "label": "$(key) Login",
+      "label": "$(key) Cloud Login",
       "type": "shell",
-      "command": "kube-login",
+      "command": "kube-cloud-login",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },
