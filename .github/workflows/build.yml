@@ -113,6 +113,22 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           sbom-path: sbom.spdx.json
 
+      # Dependency version matrix: what's actually installed in this specific
+      # tag, not just what the Dockerfile's ARGs intended. Runs the just-built
+      # image itself rather than parsing the Dockerfile, so it's accurate for
+      # aws-cli/az-cli/session-manager-plugin too — those track upstream
+      # "latest" at build time rather than a Renovate-pinned ARG.
+      - name: Generate dependency version matrix
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "## Dependency versions"
+            echo
+            docker run --rm -i --platform linux/amd64 \
+              ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }} \
+              bash -s < .github/scripts/dump-versions.sh
+          } > versions.md
+
       # Only runs for an actual tag push (this workflow's only non-PR trigger),
       # and only once everything above has succeeded — a Release is the
       # "this build is good" stamp, not something to create on a partial run.
@@ -120,4 +136,5 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
+          body_path: versions.md
           generate_release_notes: true

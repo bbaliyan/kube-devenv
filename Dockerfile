@@ -196,6 +196,24 @@ RUN chmod +x /usr/local/bin/kube-* /usr/local/bin/select-cluster 2>/dev/null || 
 COPY tasks.json /usr/share/kube-devenv/tasks.json
 
 # ── Version metadata ──────────────────────────────────────────────────────────
+# Renovate-pinned tool versions as OCI labels — a per-image, offline-readable
+# dependency matrix (`docker inspect` / `crane config`, no registry UI or repo
+# access needed). Excludes aws-cli/az-cli/session-manager-plugin: they track
+# upstream "latest" at build time rather than a pinned ARG, so there's nothing
+# static to label — see the release notes' version matrix for those instead.
+
+LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
+      io.kube-devenv.version.terragrunt="${TERRAGRUNT_VERSION}" \
+      io.kube-devenv.version.kubectl="${KUBECTL_VERSION}" \
+      io.kube-devenv.version.helm="${HELM_VERSION}" \
+      io.kube-devenv.version.sops="${SOPS_VERSION}" \
+      io.kube-devenv.version.age="${AGE_VERSION}" \
+      io.kube-devenv.version.gitleaks="${GITLEAKS_VERSION}" \
+      io.kube-devenv.version.trivy="${TRIVY_VERSION}" \
+      io.kube-devenv.version.cosign="${COSIGN_VERSION}" \
+      io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
+      io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
+      io.kube-devenv.version.fzf="${FZF_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
 ENV KUBE_DEVENV_VERSION=${KUBE_DEVENV_VERSION}

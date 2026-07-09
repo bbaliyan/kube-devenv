@@ -141,6 +141,17 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   [Security tab](https://github.com/bbaliyan/kube-devenv/security/code-scanning).
   The scan doesn't block a release — check the Security tab before deploying if that
   matters for your use case.
+- **A dependency version matrix**, in two places: the tool versions Renovate pins via
+  Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
+  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`) are baked in as OCI
+  labels (`io.kube-devenv.version.*`) — read them offline with
+  `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
+  `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
+  set including tools that aren't Renovate-pinned (`aws`, `az`,
+  `session-manager-plugin` track upstream "latest" at build time) is in each
+  [GitHub Release](https://github.com/bbaliyan/kube-devenv/releases)' notes — built
+  by actually running that release's image, not just reading the Dockerfile, so it's
+  accurate even for the unpinned tools.
 
 See [`.github/workflows/build.yml`](.github/workflows/build.yml) for the exact steps.
 
