@@ -6,78 +6,7 @@ by developers in VS Code devcontainers, by CI pipelines (dev/CI parity — same 
 everywhere), and by operators managing clusters provisioned with
 [kube-compute](https://github.com/bbaliyan/kube-compute).
 
-## What's inside
-
-| Tool | Purpose |
-|---|---|
-| `tofu` | OpenTofu — IaC provisioning |
-| `terragrunt` | Terragrunt — DRY wrapper + state management |
-| `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-compute) |
-| `helm` | Helm package manager |
-| `aws` | AWS CLI v2 |
-| `az` | Azure CLI |
-| `sops` + `age` | Secret encryption (SOPS + age backend) |
-| `gitleaks` | Secret scanning (pre-commit + CI) |
-| `trivy` | IaC misconfiguration + image vulnerability scanning |
-| `cosign` | Image signing + SBOM verification |
-| `yamlfmt` `shfmt` | Formatting linters |
-| `pre-commit` `python3` `pyyaml` | Pre-commit framework + YAML parsing |
-| `kube-*` verb-scripts | Provider-agnostic cluster operations (see below) |
-
-All versions are pinned in the `Dockerfile` via Renovate-managed `ARG` annotations and
-update automatically via PR.
-
-## Operator verb-scripts
-
-Installed to `/usr/local/bin/`. Run from the cluster directory
-(`live/<provider>/clusters/<name>/`):
-
-```
-kube-init            terragrunt init
-kube-plan            terragrunt plan
-kube-apply           terragrunt apply (requires typing the cluster name)
-kube-status          read bootstrap status (SSM / run-command, no inbound port; SSH for Proxmox)
-kube-watch           poll kube-status until complete or timeout
-kube-kubeconfig      fetch kubeconfig and write to ~/.kube/<cluster>.yaml
-kube-secrets         print in-cluster secrets (ArgoCD admin password, etc.)
-kube-shell           break-glass shell (SSM session / az serial-console, no inbound port; SSH for Proxmox)
-kube-start           start a stopped node (EC2 / Azure VM / Proxmox VM via qm, root SSH to PVE host)
-kube-destroy         destroy cluster (requires typing the cluster name)
-kube-cloud-login     authenticate against the selected cluster's provider
-                      (aws sso login / az login / Proxmox token refresh —
-                      provider inferred from the cluster's live/<provider>/
-                      path, so it works before terragrunt init)
-kube-proxmox-login   refresh the 8h Proxmox API token over SSH (Proxmox only;
-                      called by kube-cloud-login, or run directly)
-select-cluster       pick and persist the active cluster directory
-kube-run             cd to the selected cluster directory and run a kube-* verb
-kube-tasks-merge     merge base tasks.json with a consumer's tasks-custom.json
-```
-
-## VS Code Tasks
-
-Same operations as the verb-scripts above, exposed as clickable buttons (Command
-Palette → **Tasks: Run Task**, or the status bar if you have the
-[Task Explorer / Tasks button](https://marketplace.visualstudio.com/items?itemName=actboy168.tasks)
-extension). Installed automatically to `.vscode/tasks.json` on container start — see
-[`tasks.json`](tasks.json). Typical order of use, top to bottom:
-
-| Task | Purpose |
-|---|---|
-| **Select Cluster** | Pick which `live/<provider>/clusters/<name>/` directory the other tasks act on. Run this first — everything below operates on whatever's selected. |
-| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM) before doing anything else with it. |
-| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. |
-| **Init** | `terragrunt init` for the selected cluster. |
-| **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
-| **Watch** | Poll bootstrap status until the node reports complete (or times out). |
-| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
-| **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
-| **Shell** | Break-glass shell session on the node, no inbound port required. |
-| **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
-
-## Using this image
-
-### VS Code devcontainer (recommended)
+## Quick start: VS Code devcontainer
 
 Create `.devcontainer/devcontainer.json` in your repo with the following content.
 The image is pinned with both a tag and a digest (`tag@sha256:...`). The tag is
@@ -112,6 +41,12 @@ against supply chain attacks where a compromised registry rewrites a tag.
 }
 ```
 
+Add mounts/env for whichever providers you actually use (AWS: `~/.aws`,
+`AWS_PROFILE`; Azure: `~/.azure`, `ARM_SUBSCRIPTION_ID`/`ARM_TENANT_ID`) — see
+[`examples/vscode/devcontainer.json`](https://github.com/bbaliyan/kube-devenv/blob/main/examples/vscode/devcontainer.json)
+for a fuller example covering all three providers at once, plus VS Code extension
+recommendations.
+
 Proxmox setup (one-time, on your host — not in the container):
 
 ```bash
@@ -124,15 +59,62 @@ which run as `bash -c '...'` and don't source `~/.bashrc` at all, hence the `BAS
 above — so this survives container rebuilds and works regardless of whether VS Code was
 launched from a terminal or from Finder/Spotlight/Dock, unlike forwarding
 `PROXMOX_VE_ENDPOINT` via `remoteEnv`/`${localEnv:...}`, which silently does nothing in
-the GUI-launch case. Then run `kube-proxmox-login` at the start of each session for the
-token (expires after 8h) — see the [proxmox verb-script table](#operator-verb-scripts)
+the GUI-launch case. Then click **Cloud Login** at the start of each session to fetch or
+refresh the Proxmox API token (expires after 8h) — see [VS Code Tasks](#vs-code-tasks)
 below.
-
-A fuller example with VS Code extension recommendations is in
-[`examples/vscode/devcontainer.json`](https://github.com/bbaliyan/kube-devenv/blob/main/examples/vscode/devcontainer.json).
 
 Reopen your repo in VS Code → **Reopen in Container**. Renovate keeps the digest
 current via automated PRs once configured.
+
+## VS Code Tasks
+
+Once the container is running, this is how you actually work day to day: click a task
+instead of typing commands. Command Palette → **Tasks: Run Task**, or the status bar if
+you have the
+[Task Explorer / Tasks button](https://marketplace.visualstudio.com/items?itemName=actboy168.tasks)
+extension. Installed automatically to `.vscode/tasks.json` on container start.
+
+Typical order of use, top to bottom:
+
+| Task | Purpose |
+|---|---|
+| **Select Cluster** | Pick which `live/<provider>/clusters/<name>/` directory the other tasks act on. Run this first — everything below operates on whatever's selected. |
+| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM) before doing anything else with it. |
+| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. |
+| **Init** | `terragrunt init` for the selected cluster. |
+| **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
+| **Watch** | Poll bootstrap status until the node reports complete (or times out). |
+| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
+| **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
+| **Shell** | Break-glass shell session on the node, no inbound port required. |
+| **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
+
+Prefer the terminal, or need this outside VS Code (CI, scripting)? Every task is a thin
+wrapper around a plain CLI command — see
+[`scripts/README.md`](scripts/README.md) for the full reference.
+
+## What's inside
+
+| Tool | Purpose |
+|---|---|
+| `tofu` | OpenTofu — IaC provisioning |
+| `terragrunt` | Terragrunt — DRY wrapper + state management |
+| `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-compute) |
+| `helm` | Helm package manager |
+| `aws` | AWS CLI v2 |
+| `az` | Azure CLI |
+| `sops` + `age` | Secret encryption (SOPS + age backend) |
+| `gitleaks` | Secret scanning (pre-commit + CI) |
+| `trivy` | IaC misconfiguration + image vulnerability scanning |
+| `cosign` | Image signing + SBOM verification |
+| `yamlfmt` `shfmt` | Formatting linters |
+| `pre-commit` `python3` `pyyaml` | Pre-commit framework + YAML parsing |
+| `kube-*` verb-scripts | Provider-agnostic cluster operations — see [scripts/README.md](scripts/README.md) |
+
+All versions are pinned in the `Dockerfile` via Renovate-managed `ARG` annotations and
+update automatically via PR.
+
+## Other ways to use this image
 
 ### CI pipeline
 
