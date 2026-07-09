@@ -41,6 +41,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
 
       - name: Build multi-arch image
         id: build
@@ -53,6 +55,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             KUBE_DEVENV_VERSION=${{ steps.meta.outputs.version }}
+          # Native buildx SBOM + provenance attestations — the format GHCR's
+          # package page reads to render its own "SBOM" / "Provenance" tabs
+          # (what software + versions are in the image), distinct from the
+          # Trivy SARIF scan below (whether that software has known CVEs).
+          provenance: true
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -80,7 +88,8 @@ jobs:
         with:
           sarif_file: trivy.sarif
 
-      # cosign keyless signing + SBOM attestation (requires id-token: write above)
+      # cosign keyless signing (requires id-token: write above). SBOM/provenance
+      # attestations are handled natively by build-push-action above, not here.
       - name: Sign image with cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3
@@ -88,12 +97,4 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           cosign sign --yes \
-            ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
-
-      - name: Generate SBOM and attach as attestation
-        if: github.event_name != 'pull_request'
-        run: |
-          trivy image --format spdx-json --output sbom.spdx.json \
-            ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
-          cosign attest --yes --predicate sbom.spdx.json --type spdxjson \
             ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
