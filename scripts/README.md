@@ -19,8 +19,8 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-plan` | `terragrunt plan` |
 | `kube-apply` | `terragrunt apply` (requires typing the cluster name) |
 | `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick a node on a multi-node spine or Proxmox worker pool. |
-| `kube-status` | Read bootstrap status (SSM / Azure run-command, no inbound port; SSH for Proxmox). Always targets the genesis node. |
-| `kube-watch` | Poll `kube-status` until it reports complete or times out. |
+| `kube-status` | Read bootstrap status (SSM / Azure run-command, no inbound port; SSH for Proxmox). Prompts to pick a node — bootstrap status is per-node, not shared cluster-wide. |
+| `kube-watch` | Poll `kube-status` until it reports complete or times out. Prompts to pick a node once, then watches that same node throughout. |
 | `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml`. Always targets the genesis node. |
 | `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
 | `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node on a multi-node spine or Proxmox worker pool. |
@@ -46,15 +46,23 @@ from the cluster's directory path instead (`live/<provider>/clusters/<name>/...`
 ## Picking a node on a multi-node cluster
 
 A spine can have more than one control-plane node, and a Proxmox worker pool can have
-more than one worker. `kube-shell` and `kube-start` handle this by reading the
-directory's `control_plane_node_refs` (spine) or `worker_node_refs` (Proxmox worker
-pool) output — a map of every node in that unit, not just the genesis one — and
-prompting with `fzf` to pick one when there's more than a single entry. With exactly
-one node (the common case), there's no prompt — same as before.
+more than one worker. `kube-shell`, `kube-status`, and `kube-start` handle this by
+reading the directory's `control_plane_node_refs` (spine) or `worker_node_refs`
+(Proxmox worker pool) output — a map of every node in that unit, not just the genesis
+one — and prompting with `fzf` to pick one when there's more than a single entry. With
+exactly one node (the common case), there's no prompt — same as before.
 
-`kube-status`/`kube-kubeconfig` deliberately stay pinned to the genesis node: HA
-control-plane nodes should reflect the same cluster-wide bootstrap/kubeconfig state, so
-picking a specific one doesn't add anything.
+`kube-watch` picks a node once at the start (same prompt), then exports it as
+`KUBE_SELECTED_NODE` so every `kube-status` call in its polling loop reuses that choice
+instead of re-prompting every interval. Running `kube-status` standalone with
+`KUBE_SELECTED_NODE` unset always prompts fresh (or auto-selects, if there's only one
+node).
+
+`kube-kubeconfig` deliberately stays pinned to the genesis node: unlike bootstrap
+status, which is genuinely per-node (each node runs its own cloud-init independently),
+the kubeconfig's server address gets rewritten to the cluster's shared FQDN/IP
+regardless of which node the raw file was read from — so once a node has joined, which
+one you fetch from doesn't change the result.
 
 This doesn't work for AWS/Azure **worker pools** specifically — those are
 ASG/VMSS-managed, so Terraform has no per-instance list to read at all (`kube-shell`/

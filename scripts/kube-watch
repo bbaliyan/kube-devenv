@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # kube-watch — poll kube-status until bootstrap reports 'complete' or 'failed'.
-# Run from the cluster directory (live/<provider>/clusters/<name>/).
+# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
+# to pick a node once (multi-node spine or worker pool), then polls that same
+# node throughout: KUBE_SELECTED_NODE is exported so each kube-status
+# invocation below reuses the choice instead of re-prompting every interval.
 set -euo pipefail
+source kube-common.sh
 
 INTERVAL="${KUBE_WATCH_INTERVAL:-15}"
 TIMEOUT="${KUBE_WATCH_TIMEOUT:-600}"
 ELAPSED=0
-CLUSTER=$(basename "$(pwd)")
 
-echo "Watching bootstrap for cluster '${CLUSTER}' (polling every ${INTERVAL}s, timeout ${TIMEOUT}s)..."
+terragrunt_outputs
+NODE=$(select_node "${TF_OUTPUTS}")
+NODE_NAME=$(echo "${NODE}" | jq -r '.name')
+export KUBE_SELECTED_NODE="${NODE}"
+
+echo "Watching bootstrap for node '${NODE_NAME}' in $(pwd) (polling every ${INTERVAL}s, timeout ${TIMEOUT}s)..."
 
 while true; do
   STATUS=$(kube-status 2>/dev/null | tr -d '[:space:]' || echo "error")
