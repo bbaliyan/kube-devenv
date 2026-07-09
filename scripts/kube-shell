@@ -1,35 +1,39 @@
 #!/usr/bin/env bash
-# kube-shell — break-glass shell session on the node.
+# kube-shell — break-glass shell session on a node.
 # AWS/Azure use an inbound-port-free control-plane primitive (SSM /
 # run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
 # the node — see live/proxmox/README.md).
-# Run from the cluster directory (live/<provider>/clusters/<name>/).
+# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
+# to pick a node when there's more than one (multi-node spine or worker pool).
 set -euo pipefail
 source kube-common.sh
 
 terragrunt_outputs
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
-STATUS_REF=$(echo "${TF_OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+
+NODE=$(select_node "${TF_OUTPUTS}")
+NODE_NAME=$(echo "${NODE}" | jq -r '.name')
+NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
+NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 
 case "${NODE_PROVIDER}" in
 
   proxmox)
-    CLUSTER_IP=$(echo "${TF_OUTPUTS}" | jq -r '.cluster_ip.value')
     VM_SSH_KEY=$(proxmox_vm_ssh_key)
     VM_SSH_USER=$(proxmox_vm_ssh_user)
-    echo "Opening shell on ${CLUSTER_IP} as ${VM_SSH_USER}..."
-    ssh -i "${VM_SSH_KEY}" -t -o StrictHostKeyChecking=accept-new "${VM_SSH_USER}@${CLUSTER_IP}"
+    echo "Opening shell on ${NODE_NAME} (${NODE_IP}) as ${VM_SSH_USER}..."
+    ssh -i "${VM_SSH_KEY}" -t -o StrictHostKeyChecking=accept-new "${VM_SSH_USER}@${NODE_IP}"
     ;;
 
   aws)
-    echo "Starting SSM session on ${STATUS_REF}..."
-    aws ssm start-session --target "${STATUS_REF}"
+    echo "Starting SSM session on ${NODE_NAME} (${NODE_INSTANCE_ID})..."
+    aws ssm start-session --target "${NODE_INSTANCE_ID}"
     ;;
 
   azure)
     RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
-    VM_NAME=$(basename "${STATUS_REF}")
-    echo "Starting Azure run-command shell on ${VM_NAME}..."
+    VM_NAME=$(basename "${NODE_INSTANCE_ID}")
+    echo "Starting Azure run-command shell on ${NODE_NAME} (${VM_NAME})..."
     echo "(Azure run-command is non-interactive — use 'az serial-console' for a live session)"
     az vm run-command invoke \
       --resource-group "${RESOURCE_GROUP}" \

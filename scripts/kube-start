@@ -1,25 +1,29 @@
 #!/usr/bin/env bash
-# kube-start — start a stopped cluster node.
-# Run from the cluster directory (live/<provider>/clusters/<name>/).
+# kube-start — start a stopped node.
+# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
+# to pick a node when there's more than one (multi-node spine or worker pool).
 set -euo pipefail
 source kube-common.sh
 
 terragrunt_outputs
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
-STATUS_REF=$(echo "${TF_OUTPUTS}"   | jq -r '.bootstrap_status_ref.value')
+
+NODE=$(select_node "${TF_OUTPUTS}")
+NODE_NAME=$(echo "${NODE}" | jq -r '.name')
+NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 
 case "${NODE_PROVIDER}" in
 
   aws)
-    echo "Starting EC2 instance ${STATUS_REF}..."
-    aws ec2 start-instances --instance-ids "${STATUS_REF}" \
+    echo "Starting EC2 instance ${NODE_NAME} (${NODE_INSTANCE_ID})..."
+    aws ec2 start-instances --instance-ids "${NODE_INSTANCE_ID}" \
       --query 'StartingInstances[0].CurrentState.Name' --output text
     ;;
 
   azure)
     RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
-    VM_NAME=$(basename "${STATUS_REF}")
-    echo "Starting Azure VM ${VM_NAME} in resource group ${RESOURCE_GROUP}..."
+    VM_NAME=$(basename "${NODE_INSTANCE_ID}")
+    echo "Starting Azure VM ${NODE_NAME} (${VM_NAME}) in resource group ${RESOURCE_GROUP}..."
     az vm start --resource-group "${RESOURCE_GROUP}" --name "${VM_NAME}"
     ;;
 
@@ -28,8 +32,8 @@ case "${NODE_PROVIDER}" in
     # to pmxcfs directly), so this uses the same root SSH access as
     # kube-proxmox-login, not the tofu ops user.
     PROXMOX_HOST=$(proxmox_host)
-    echo "Starting Proxmox VM ${STATUS_REF}..."
-    ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm start ${STATUS_REF}"
+    echo "Starting Proxmox VM ${NODE_NAME} (${NODE_INSTANCE_ID})..."
+    ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm start ${NODE_INSTANCE_ID}"
     ;;
 
   *)

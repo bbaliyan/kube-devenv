@@ -46,11 +46,61 @@ cluster_provider() {
 # with a provider-neutral error.
 terragrunt_outputs() {
   TF_OUTPUTS=$(terragrunt output -json) || {
-    echo "Error: 'terragrunt output' failed (see error above) — common causes:" >&2
+    echo "Error: 'terragrunt output' failed (see output above) — common causes:" >&2
     echo "  wrong directory, expired provider credentials (AWS/Azure/Proxmox)," >&2
     echo "  or no state applied yet." >&2
     exit 1
   }
+}
+
+# select_node <tf_outputs_json> — pick a node from this directory's
+# control_plane_node_refs (spine) or worker_node_refs (Proxmox worker pool),
+# whichever is present. Auto-selects with no prompt when there's exactly one
+# node (single-node clusters see no change in behavior). Prompts with fzf
+# (name + ip-or-instance_id) when there's more than one. Echoes the chosen
+# node as a JSON object on stdout, with "name" merged in.
+#
+# AWS/Azure worker pools have no equivalent output (ASG/VMSS-managed — no
+# per-instance list Terraform tracks), so this errors clearly there rather
+# than silently targeting nothing.
+select_node() {
+  local tf_outputs="$1" refs_key refs_json="" count picked_name
+
+  for refs_key in control_plane_node_refs worker_node_refs; do
+    refs_json=$(echo "${tf_outputs}" | jq -c --arg k "${refs_key}" '.[$k].value // empty')
+    if [[ -n "${refs_json}" && "${refs_json}" != "null" ]]; then
+      break
+    fi
+    refs_json=""
+  done
+
+  if [[ -z "${refs_json}" ]]; then
+    echo "Error: no control_plane_node_refs or worker_node_refs output in this directory." >&2
+    echo "  (AWS/Azure worker pools don't expose one — they're ASG/VMSS-managed," >&2
+    echo "  so Terraform has no per-node list to read)" >&2
+    exit 1
+  fi
+
+  count=$(echo "${refs_json}" | jq 'length')
+  if [[ "${count}" -eq 0 ]]; then
+    echo "Error: ${refs_key} is empty." >&2
+    exit 1
+  fi
+
+  if [[ "${count}" -eq 1 ]]; then
+    echo "${refs_json}" | jq -c 'to_entries[0].value + {name: to_entries[0].key}'
+    return 0
+  fi
+
+  picked_name=$(echo "${refs_json}" | jq -r 'to_entries[] | "\(.key)\t\(.value.ip // .value.instance_id)"' \
+    | fzf --prompt="Select node: " --height=10 --border --with-nth=1,2 --delimiter='\t' \
+          --bind='left-click:accept' \
+    | cut -f1) || {
+    echo "No node selected." >&2
+    exit 1
+  }
+
+  echo "${refs_json}" | jq -c --arg n "${picked_name}" '.[$n] + {name: $n}'
 }
 
 # proxmox_host — parse the PVE hostname out of PROXMOX_VE_ENDPOINT, or exit.
