@@ -16,9 +16,9 @@
       "problemMatcher": []
     },
     {
-      "label": "$(key) Proxmox Login",
+      "label": "$(key) Login",
       "type": "shell",
-      "command": "kube-proxmox-login",
+      "command": "kube-login",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },

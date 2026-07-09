@@ -1,7 +1,46 @@
 #!/usr/bin/env bash
 # kube-common.sh — shared helpers for the provider-dispatch verb-scripts
-# (kube-status, kube-shell, kube-kubeconfig, kube-start). Sourced, not run
-# directly: `source kube-common.sh` (found via PATH like the other scripts).
+# (kube-status, kube-shell, kube-kubeconfig, kube-start, kube-run, kube-login).
+# Sourced, not run directly: `source kube-common.sh` (found via PATH like the
+# other scripts).
+
+# selected_cluster_dir — resolve the persisted 'Select Cluster' choice to an
+# absolute path, or exit with a clear error. Echoes the path on success.
+selected_cluster_dir() {
+  local workspace persist_file dir
+  workspace="${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+  persist_file="${workspace}/.vscode/.selected-cluster"
+
+  if [[ ! -f "${persist_file}" ]]; then
+    echo "Error: no cluster selected — run 'Select Cluster' first." >&2
+    exit 1
+  fi
+
+  dir="$(cat "${persist_file}")"
+
+  if [[ ! -d "${dir}" ]]; then
+    echo "Error: selected cluster directory '${dir}' no longer exists." >&2
+    echo "Run 'Select Cluster' to pick a valid cluster." >&2
+    exit 1
+  fi
+
+  echo "${dir}"
+}
+
+# cluster_provider <cluster_dir> — extract the provider name from a cluster's
+# live/<provider>/... path. Deliberately path-based rather than reading
+# terragrunt output: this must work before 'terragrunt init' has ever run
+# (e.g. to authenticate for the first time), when no state/output exists yet.
+cluster_provider() {
+  local dir="$1" provider
+  provider=$(echo "${dir}" | sed -n 's|.*/live/\([^/]*\)/.*|\1|p')
+  if [[ -z "${provider}" ]]; then
+    echo "Error: could not determine provider from cluster path '${dir}'" >&2
+    echo "  (expected .../live/<provider>/clusters/<name>)" >&2
+    exit 1
+  fi
+  echo "${provider}"
+}
 
 # terragrunt_outputs — read terragrunt output -json into TF_OUTPUTS, or exit
 # with a provider-neutral error.

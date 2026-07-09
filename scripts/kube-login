@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# kube-login — authenticate (or refresh a short-lived session) against the
+# selected cluster's cloud provider: AWS SSO, Azure CLI, or a Proxmox API
+# token refresh over SSH.
+#
+# The provider is inferred from the selected cluster's live/<provider>/...
+# path, not from terragrunt output — this has to work *before* the first
+# 'terragrunt init', when no state or output exists yet.
+set -euo pipefail
+source kube-common.sh
+
+CLUSTER_DIR=$(selected_cluster_dir)
+PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
+
+case "${PROVIDER}" in
+
+  aws)
+    echo "Refreshing AWS SSO session (profile: ${AWS_PROFILE:-default})..."
+    aws sso login
+    ;;
+
+  azure)
+    echo "Logging in to Azure..."
+    az login
+    if [[ -n "${ARM_SUBSCRIPTION_ID:-}" ]]; then
+      az account set --subscription "${ARM_SUBSCRIPTION_ID}"
+    fi
+    ;;
+
+  proxmox)
+    exec kube-proxmox-login
+    ;;
+
+  *)
+    echo "Error: unknown provider '${PROVIDER}' for cluster '${CLUSTER_DIR}'" >&2
+    exit 1
+    ;;
+
+esac

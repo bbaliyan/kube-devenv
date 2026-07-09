@@ -28,11 +28,11 @@ commands:
       commandLine: kube-start
       workingDir: ${CLUSTER_DIR:-/projects}
 
-  - id: kube-proxmox-login
+  - id: kube-login
     exec:
-      label: "kube: proxmox login"
+      label: "kube: login"
       component: tools
-      commandLine: kube-proxmox-login
+      commandLine: kube-login
       workingDir: ${CLUSTER_DIR:-/projects}
 
   - id: kube-init

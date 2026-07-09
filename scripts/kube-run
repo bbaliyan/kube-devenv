@@ -2,22 +2,9 @@
 # kube-run — cd to the selected cluster directory and run a kube-* verb.
 # Used by VS Code task buttons so each task dispatches to the persisted cluster.
 set -euo pipefail
+source kube-common.sh
 
-WORKSPACE="${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-PERSIST_FILE="${WORKSPACE}/.vscode/.selected-cluster"
-
-if [[ ! -f "${PERSIST_FILE}" ]]; then
-  echo "Error: no cluster selected — run 'Select Cluster' first." >&2
-  exit 1
-fi
-
-CLUSTER_DIR="$(cat "${PERSIST_FILE}")"
-
-if [[ ! -d "${CLUSTER_DIR}" ]]; then
-  echo "Error: selected cluster directory '${CLUSTER_DIR}' no longer exists." >&2
-  echo "Run 'Select Cluster' to pick a valid cluster." >&2
-  exit 1
-fi
+CLUSTER_DIR=$(selected_cluster_dir)
 
 echo "→ $(basename "${CLUSTER_DIR}")"
 cd "${CLUSTER_DIR}"
