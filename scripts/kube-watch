@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kube-watch — poll kube-status until bootstrap reports 'complete' or 'failed'.
 # Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node once (multi-node spine or worker pool), then polls that same
+# to pick a node once (multi-node control-plane or node pool), then polls that same
 # node throughout: KUBE_SELECTED_NODE is exported so each kube-status
 # invocation below reuses the choice instead of re-prompting every interval.
 set -euo pipefail

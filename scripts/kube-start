@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kube-start — start a stopped node.
 # Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node when there's more than one (multi-node spine or worker pool).
+# to pick a node when there's more than one (multi-node control-plane or node pool).
 set -euo pipefail
 source kube-common.sh
 

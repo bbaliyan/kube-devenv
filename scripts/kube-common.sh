@@ -54,13 +54,13 @@ terragrunt_outputs() {
 }
 
 # select_node <tf_outputs_json> — pick a node from this directory's
-# control_plane_node_refs (spine) or worker_node_refs (Proxmox worker pool),
+# control_plane_node_refs (control-plane) or worker_node_refs (Proxmox node pool),
 # whichever is present. Auto-selects with no prompt when there's exactly one
 # node (single-node clusters see no change in behavior). Prompts with fzf
 # (name + ip-or-instance_id) when there's more than one. Echoes the chosen
 # node as a JSON object on stdout, with "name" merged in.
 #
-# AWS/Azure worker pools have no equivalent output (ASG/VMSS-managed — no
+# AWS/Azure node pools have no equivalent output (ASG/VMSS-managed — no
 # per-instance list Terraform tracks), so this errors clearly there rather
 # than silently targeting nothing.
 select_node() {
@@ -76,7 +76,7 @@ select_node() {
 
   if [[ -z "${refs_json}" ]]; then
     echo "Error: no control_plane_node_refs or worker_node_refs output in this directory." >&2
-    echo "  (AWS/Azure worker pools don't expose one — they're ASG/VMSS-managed," >&2
+    echo "  (AWS/Azure node pools don't expose one — they're ASG/VMSS-managed," >&2
     echo "  so Terraform has no per-node list to read)" >&2
     exit 1
   fi
