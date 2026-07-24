@@ -143,7 +143,8 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   matters for your use case.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
-  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`) are baked in as OCI
+  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`, `boto3`,
+  the `amazon.aws` Ansible collection) are baked in as OCI
   labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
   `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
@@ -195,7 +196,8 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   helm version && aws --version && az --version &&
   sops --version && age --version && gitleaks version &&
   trivy --version && cosign version && shfmt --version && yamlfmt --version &&
-  fzf --version && session-manager-plugin --version
+  fzf --version && session-manager-plugin --version &&
+  ansible-playbook --version && ansible-galaxy collection list amazon.aws
 "
 ```
 

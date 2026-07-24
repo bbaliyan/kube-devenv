@@ -6,7 +6,7 @@
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, trivy, cosign, fzf, session-manager-plugin, make)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, trivy, cosign, fzf, session-manager-plugin, ansible-core, make)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -48,6 +48,18 @@ ARG YAMLFMT_VERSION=0.21.0
 
 # renovate: datasource=github-releases depName=mvdan/sh
 ARG SHFMT_VERSION=3.13.1
+
+# ansible-core 2.20+ requires Python >=3.12; this image's base
+# (debian:bookworm-slim) ships system python3 at 3.11 — pinned to the 2.19
+# line until the base image itself moves to a bookworm successor with 3.12.
+# renovate.json's existing "minor/major require manual review" rule already
+# stops Renovate from silently proposing 2.20+; a reviewer bumping this past
+# 2.19.x must also confirm the base image's Python version first.
+# renovate: datasource=pypi depName=ansible-core
+ARG ANSIBLE_CORE_VERSION=2.19.11
+
+# renovate: datasource=pypi depName=boto3
+ARG BOTO3_VERSION=1.43.55
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
@@ -186,6 +198,29 @@ RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_
     && rm /tmp/session-manager-plugin.deb \
     && session-manager-plugin --version
 
+# ── Ansible (RKE2 node-bootstrap) ────────────────────────────────────────────
+# kube-compute's node-bootstrap module triggers `ansible-playbook` via a
+# Terraform local-exec provisioner during `terragrunt apply` — this image is
+# where that apply runs, so it must be present here or apply fails at the
+# local-exec step with a plain "command not found". amazon.aws is the AWS SSM
+# connection plugin's collection (aws_ssm needs the session-manager-plugin
+# binary installed above, plus boto3 as its own Python dependency); Proxmox's
+# connection is stock SSH, needing nothing beyond openssh-client (already
+# installed above). No maintained Ansible connection plugin exists yet for
+# Azure's run-command/Bastion primitives, so no Azure-specific Ansible
+# tooling is installed here.
+
+RUN pip3 install --no-cache-dir --break-system-packages \
+    "ansible-core==${ANSIBLE_CORE_VERSION}" \
+    "boto3==${BOTO3_VERSION}" \
+    && ansible-playbook --version
+
+# renovate: datasource=galaxy-collection depName=amazon.aws
+ARG AMAZON_AWS_COLLECTION_VERSION=11.4.0
+
+RUN ansible-galaxy collection install "amazon.aws:${AMAZON_AWS_COLLECTION_VERSION}" \
+    && ansible-galaxy collection list amazon.aws
+
 # ── Operator verb-scripts ─────────────────────────────────────────────────────
 
 COPY scripts/ /usr/local/bin/
@@ -213,7 +248,10 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.cosign="${COSIGN_VERSION}" \
       io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
-      io.kube-devenv.version.fzf="${FZF_VERSION}"
+      io.kube-devenv.version.fzf="${FZF_VERSION}" \
+      io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}" \
+      io.kube-devenv.version.boto3="${BOTO3_VERSION}" \
+      io.kube-devenv.version.amazon-aws-collection="${AMAZON_AWS_COLLECTION_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
 ENV KUBE_DEVENV_VERSION=${KUBE_DEVENV_VERSION}
