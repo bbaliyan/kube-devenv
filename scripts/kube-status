@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# kube-status — read bootstrap status from a node.
+# kube-status — report RKE2 join/bootstrap status for a node: one of
+# not-started, in-progress, failed, complete (see kube-common.sh's
+# rke2_status_probe_script for exactly what each means). No status file is
+# read or written anywhere — RKE2's install leaves no such file — this
+# queries the node's own systemd unit and, for a server node, its own
+# `kubectl get node` entry, out-of-band each time this is run.
 # AWS/Azure use an inbound-port-free control-plane primitive (SSM /
 # run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
 # the node — see live/proxmox/README.md).
 # Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node when there's more than one — bootstrap status is written
-# per-node (each node runs its own cloud-init independently), so genesis's
-# status doesn't tell you whether cp-1 or a worker actually finished.
+# to pick a node when there's more than one — status is genuinely per-node
+# (each node runs its own bootstrap independently), so genesis's status
+# doesn't tell you whether cp-1 or a worker actually finished.
 #
 # If KUBE_SELECTED_NODE is already set (kube-watch exports it so it only
 # prompts once instead of on every poll), that node is used as-is.
@@ -20,6 +25,8 @@ NODE="${KUBE_SELECTED_NODE:-$(select_node "${TF_OUTPUTS}")}"
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 
+PROBE_SCRIPT=$(rke2_status_probe_script)
+
 case "${NODE_PROVIDER}" in
 
   proxmox)
@@ -27,14 +34,14 @@ case "${NODE_PROVIDER}" in
     VM_SSH_USER=$(proxmox_vm_ssh_user)
     ssh -i "${VM_SSH_KEY}" -o StrictHostKeyChecking=accept-new \
         "${VM_SSH_USER}@${NODE_IP}" \
-        "cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo 'not-started'"
+        "${PROBE_SCRIPT}"
     ;;
 
   aws)
     aws ssm send-command \
       --instance-ids "${NODE_INSTANCE_ID}" \
       --document-name "AWS-RunShellScript" \
-      --parameters 'commands=["cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo not-started"]' \
+      --parameters "commands=[$(jq -Rs . <<<"${PROBE_SCRIPT}")]" \
       --query "Command.CommandId" --output text \
       | xargs -I{} aws ssm get-command-invocation \
           --instance-id "${NODE_INSTANCE_ID}" --command-id {} \
@@ -48,7 +55,7 @@ case "${NODE_PROVIDER}" in
       --resource-group "${RESOURCE_GROUP}" \
       --name "${VM_NAME}" \
       --command-id RunShellScript \
-      --scripts "cat /var/log/kube-compute/bootstrap-status 2>/dev/null || echo not-started" \
+      --scripts "${PROBE_SCRIPT}" \
       --query "value[0].message" --output tsv
     ;;
 

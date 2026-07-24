@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# kube-watch — poll kube-status until bootstrap reports 'complete' or 'failed'.
+# kube-watch — poll kube-status until it reports 'complete' or 'failed'.
+# ('in-progress'/'not-started' keep the loop going — see kube-common.sh's
+# rke2_status_probe_script for what each status means.)
 # Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
 # to pick a node once (multi-node control-plane or node pool), then polls that same
 # node throughout: KUBE_SELECTED_NODE is exported so each kube-status

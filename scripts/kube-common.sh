@@ -119,16 +119,57 @@ proxmox_host() {
 
 # proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
 # (not the PVE host). Defaults match live/proxmox/README.md's Part 2 setup:
-# the id_ed25519_kube_cluster key, ubuntu user. Requires port 22 open to the
+# the id_ed25519_kube_cluster key, almalinux user. Requires port 22 open to the
 # node (ingress_ports) — off by default, since the project's baseline design
 # has no inbound SSH to nodes; Proxmox consumers opt into it explicitly.
 proxmox_vm_ssh_key() { echo "${PROXMOX_VM_SSH_KEY:-${HOME}/.ssh/id_ed25519_kube_cluster}"; }
-proxmox_vm_ssh_user() { echo "${PROXMOX_VM_SSH_USER:-ubuntu}"; }
+proxmox_vm_ssh_user() { echo "${PROXMOX_VM_SSH_USER:-almalinux}"; }
 
-# rewrite_kubeconfig <server> <cluster_name> — read a k3s kubeconfig on stdin,
+# rewrite_kubeconfig <server> <cluster_name> — read an rke2 kubeconfig on stdin,
 # swap the loopback server for <server> and the default context/cluster/user
 # name for <cluster_name>, write to stdout.
 rewrite_kubeconfig() {
   local server="$1" cluster_name="$2"
   sed "s|127\.0\.0\.1|${server}|g; s|default|${cluster_name}|g"
+}
+
+# rke2_status_probe_script — echoes a shell script (as a single string) that,
+# run on a node, prints exactly one of: not-started | in-progress | failed |
+# complete. No status file to read (RKE2's own install writes nothing of the
+# sort) — this derives status from the rke2-server/rke2-agent systemd unit
+# RKE2's installer always creates, whichever role this node has. For a server
+# node, "complete" additionally requires this node to show Ready in its own
+# `kubectl get node <hostname>` — a unit merely being active only proves the
+# process started, not that it finished joining etcd/the API. An agent node
+# has no local kubeconfig to query, so unit-active is the strongest signal
+# available from the node itself. Assumes RKE2's default node-name (the OS
+# hostname) — this project's cloud-init/node-bootstrap templates don't
+# override --node-name. Shared by kube-status's three provider branches so
+# this probe logic isn't triplicated per-provider.
+rke2_status_probe_script() {
+  cat <<'PROBE'
+if systemctl list-unit-files rke2-server.service 2>/dev/null | grep -q rke2-server; then
+  UNIT=rke2-server
+elif systemctl list-unit-files rke2-agent.service 2>/dev/null | grep -q rke2-agent; then
+  UNIT=rke2-agent
+else
+  echo not-started
+  exit 0
+fi
+if systemctl is-failed --quiet "$UNIT"; then
+  echo failed
+  exit 0
+fi
+if ! systemctl is-active --quiet "$UNIT"; then
+  echo in-progress
+  exit 0
+fi
+if [ "$UNIT" = rke2-server ]; then
+  KUBECTL_BIN=$(command -v kubectl || echo /var/lib/rancher/rke2/bin/kubectl)
+  READY=$("$KUBECTL_BIN" --kubeconfig /etc/rancher/rke2/rke2.yaml get node "$(hostname)" --no-headers 2>/dev/null | awk '{print $2}')
+  if [ "$READY" = "Ready" ]; then echo complete; else echo in-progress; fi
+else
+  echo complete
+fi
+PROBE
 }
