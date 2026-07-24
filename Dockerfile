@@ -58,9 +58,6 @@ ARG SHFMT_VERSION=3.13.1
 # renovate: datasource=pypi depName=ansible-core
 ARG ANSIBLE_CORE_VERSION=2.19.11
 
-# renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.43.55
-
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -201,25 +198,20 @@ RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_
 # ── Ansible (RKE2 node-bootstrap) ────────────────────────────────────────────
 # kube-compute's node-bootstrap module triggers `ansible-playbook` via a
 # Terraform local-exec provisioner during `terragrunt apply` — this image is
-# where that apply runs, so it must be present here or apply fails at the
-# local-exec step with a plain "command not found". amazon.aws is the AWS SSM
-# connection plugin's collection (aws_ssm needs the session-manager-plugin
-# binary installed above, plus boto3 as its own Python dependency); Proxmox's
-# connection is stock SSH, needing nothing beyond openssh-client (already
-# installed above). No maintained Ansible connection plugin exists yet for
-# Azure's run-command/Bastion primitives, so no Azure-specific Ansible
-# tooling is installed here.
+# where that apply runs, so ansible-core must be present here or apply fails
+# at the local-exec step with a plain "command not found". Only the engine
+# lives here: playbook-specific dependencies (the amazon.aws collection for
+# AWS SSM's connection plugin, and its own boto3 requirement) are declared in
+# node-bootstrap/ansible/requirements.yml and requirements.txt in kube-compute
+# and installed by node-bootstrap's own local-exec command before it invokes
+# ansible-playbook — that keeps this image's release cycle decoupled from
+# which cloud connection plugins a given kube-compute version happens to need,
+# the same reason session-manager-plugin (a real transport binary, not a
+# pip/collection dependency) stays here rather than moving there.
 
 RUN pip3 install --no-cache-dir --break-system-packages \
     "ansible-core==${ANSIBLE_CORE_VERSION}" \
-    "boto3==${BOTO3_VERSION}" \
     && ansible-playbook --version
-
-# renovate: datasource=galaxy-collection depName=amazon.aws
-ARG AMAZON_AWS_COLLECTION_VERSION=11.4.0
-
-RUN ansible-galaxy collection install "amazon.aws:${AMAZON_AWS_COLLECTION_VERSION}" \
-    && ansible-galaxy collection list amazon.aws
 
 # ── Operator verb-scripts ─────────────────────────────────────────────────────
 
@@ -249,9 +241,7 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
       io.kube-devenv.version.fzf="${FZF_VERSION}" \
-      io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}" \
-      io.kube-devenv.version.boto3="${BOTO3_VERSION}" \
-      io.kube-devenv.version.amazon-aws-collection="${AMAZON_AWS_COLLECTION_VERSION}"
+      io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
 ENV KUBE_DEVENV_VERSION=${KUBE_DEVENV_VERSION}

@@ -143,16 +143,18 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   matters for your use case.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
-  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`, `boto3`,
-  the `amazon.aws` Ansible collection) are baked in as OCI
-  labels (`io.kube-devenv.version.*`) — read them offline with
+  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`) are baked
+  in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
   `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
   set including tools that aren't Renovate-pinned (`aws`, `az`,
   `session-manager-plugin` track upstream "latest" at build time) is in each
   [GitHub Release](https://github.com/bbaliyan/kube-devenv/releases)' notes — built
   by actually running that release's image, not just reading the Dockerfile, so it's
-  accurate even for the unpinned tools.
+  accurate even for the unpinned tools. Only `ansible-core` (the engine) lives here —
+  Ansible collections and their Python dependencies (e.g. `amazon.aws` + `boto3` for
+  AWS SSM) are playbook-specific, declared and installed on demand by kube-compute's
+  `node-bootstrap` module itself, not baked into this image.
 
 See [`.github/workflows/build.yml`](.github/workflows/build.yml) for the exact steps.
 
@@ -197,7 +199,7 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   sops --version && age --version && gitleaks version &&
   trivy --version && cosign version && shfmt --version && yamlfmt --version &&
   fzf --version && session-manager-plugin --version &&
-  ansible-playbook --version && ansible-galaxy collection list amazon.aws
+  ansible-playbook --version
 "
 ```
 
