@@ -49,11 +49,11 @@ commands:
       commandLine: kube-start
       workingDir: ${CLUSTER_DIR:-/projects}
 
-  - id: kube-watch
+  - id: kube-tail
     exec:
-      label: "kube: watch bootstrap"
+      label: "kube: tail bootstrap log"
       component: tools
-      commandLine: kube-watch
+      commandLine: kube-tail
       workingDir: ${CLUSTER_DIR:-/projects}
 
   - id: kube-kubeconfig

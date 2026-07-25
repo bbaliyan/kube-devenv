@@ -20,8 +20,7 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-apply` | `terragrunt apply` (requires typing the cluster name) |
 | `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
 | `kube-status` | Report RKE2 join status for a node — `not-started` / `in-progress` / `failed` / `complete`, derived live from the node's own `rke2-server`/`rke2-agent` systemd unit and (for a server node) its own `kubectl get node` entry (SSM / Azure run-command, no inbound port; SSH for Proxmox). No status file involved. Prompts to pick a node — status is per-node, not shared cluster-wide. |
-| `kube-watch` | Poll `kube-status` until it reports `complete`/`failed` or times out. Prompts to pick a node once, then watches that same node throughout. |
-| `kube-tail` | Live-tail a node's Ansible bootstrap log (`/tmp/kube-compute-bootstrap-<node>.log`, local to whatever machine runs `apply` — same for AWS and Proxmox) while `terragrunt apply` runs in another terminal. Terraform/OpenTofu unconditionally suppresses that provisioner's own console output because its config touches sensitive values, so this is the only way to see live, task-by-task Ansible progress during a run. Unlike `kube-status`/`kube-shell`/`kube-watch`, doesn't read `terragrunt output` (those outputs don't exist until the whole apply finishes) — globs for logfiles by cluster name instead, so it works precisely during an in-progress apply. Prompts to pick a node if more than one is bootstrapping. |
+| `kube-tail` | Live-tail a node's Ansible bootstrap log (`/tmp/kube-compute-bootstrap-<node>.log`, local to whatever machine runs `apply` — same for AWS and Proxmox) while `terragrunt apply` runs in another terminal. Terraform/OpenTofu unconditionally suppresses that provisioner's own console output because its config touches sensitive values, so this is the only way to see live, task-by-task Ansible progress during a run. Unlike `kube-status`/`kube-shell`, doesn't read `terragrunt output` (those outputs don't exist until the whole apply finishes) — globs for logfiles by cluster name instead, so it works precisely during an in-progress apply. Prompts to pick a node if more than one is bootstrapping. |
 | `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml`. Always targets the genesis node. |
 | `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
 | `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
@@ -52,12 +51,6 @@ reading the directory's `control_plane_node_refs` (control-plane) or `worker_nod
 (Proxmox node pool) output — a map of every node in that unit, not just the genesis
 one — and prompting with `fzf` to pick one when there's more than a single entry. With
 exactly one node (the common case), there's no prompt — same as before.
-
-`kube-watch` picks a node once at the start (same prompt), then exports it as
-`KUBE_SELECTED_NODE` so every `kube-status` call in its polling loop reuses that choice
-instead of re-prompting every interval. Running `kube-status` standalone with
-`KUBE_SELECTED_NODE` unset always prompts fresh (or auto-selects, if there's only one
-node).
 
 `kube-kubeconfig` deliberately stays pinned to the genesis node: unlike join status,
 which is genuinely per-node (each node bootstraps independently), the kubeconfig's

@@ -10,7 +10,7 @@
 # apply, not on the remote node itself.
 #
 # Deliberately does NOT use kube-common.sh's select_node/terragrunt_outputs
-# (unlike kube-status/kube-shell/kube-watch): those read
+# (unlike kube-status/kube-shell): those read
 # control_plane_node_refs/worker_node_refs via `terragrunt output`, but
 # Terraform only writes root outputs to state after the ENTIRE apply
 # finishes — they don't exist yet while a node's bootstrap is still running,

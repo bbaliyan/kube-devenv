@@ -38,13 +38,6 @@
       "problemMatcher": []
     },
     {
-      "label": "$(sync) Watch",
-      "type": "shell",
-      "command": "kube-run kube-watch",
-      "presentation": { "reveal": "always", "panel": "dedicated" },
-      "problemMatcher": []
-    },
-    {
       "label": "$(output) Tail",
       "detail": "Live Ansible task-by-task progress during Apply — run in a separate panel alongside it.",
       "type": "shell",

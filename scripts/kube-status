@@ -12,16 +12,13 @@
 # to pick a node when there's more than one — status is genuinely per-node
 # (each node runs its own bootstrap independently), so genesis's status
 # doesn't tell you whether cp-1 or a worker actually finished.
-#
-# If KUBE_SELECTED_NODE is already set (kube-watch exports it so it only
-# prompts once instead of on every poll), that node is used as-is.
 set -euo pipefail
 source kube-common.sh
 
 terragrunt_outputs
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
-NODE="${KUBE_SELECTED_NODE:-$(select_node "${TF_OUTPUTS}")}"
+NODE=$(select_node "${TF_OUTPUTS}")
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 
