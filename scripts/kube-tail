@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# kube-tail — live-tail a node's Ansible bootstrap log while `terragrunt
+# apply` runs in another terminal. node-bootstrap mirrors its whole run to
+# /tmp/kube-compute-bootstrap-<node_name>.log on this same machine (the one
+# running apply) via `tee` — Terraform/OpenTofu itself unconditionally
+# suppresses that provisioner's own console output because its config
+# touches sensitive values (the cluster tokens), so this is the only way to
+# watch live, task-by-task Ansible progress during a run. Works the same way
+# for AWS and Proxmox alike — the log is local to whatever machine runs
+# apply, not on the remote node itself.
+# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
+# to pick a node when there's more than one — each node bootstraps
+# independently and gets its own log.
+set -euo pipefail
+source kube-common.sh
+
+terragrunt_outputs
+NODE="${KUBE_SELECTED_NODE:-$(select_node "${TF_OUTPUTS}")}"
+NODE_NAME=$(echo "${NODE}" | jq -r '.name')
+
+LOG="/tmp/kube-compute-bootstrap-${NODE_NAME}.log"
+
+echo "Watching ${LOG}"
+echo "(waiting for it to appear if this node's bootstrap hasn't started yet — Ctrl-C to stop)"
+tail -F -n +1 "${LOG}"

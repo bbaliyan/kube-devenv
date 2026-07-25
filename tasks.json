@@ -45,6 +45,14 @@
       "problemMatcher": []
     },
     {
+      "label": "$(output) Tail",
+      "detail": "Live Ansible task-by-task progress during Apply — run in a separate panel alongside it.",
+      "type": "shell",
+      "command": "kube-run kube-tail",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
       "label": "$(plug) Kubeconfig",
       "type": "shell",
       "command": "kube-run kube-kubeconfig",
