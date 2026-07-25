@@ -11,6 +11,16 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
+# debian:bookworm-slim ships no locale data (the `locales` package is stripped
+# to save size), so any LANG/LC_ALL a host terminal forwards in (e.g. a macOS
+# en_US.UTF-8) fails to initialize here — breaks ansible-playbook outright
+# ("could not initialize the preferred locale") and would silently affect any
+# other locale-sensitive tool. C.UTF-8 is glibc's built-in fallback: full
+# UTF-8 support, no locale-gen needed, always present. Set unconditionally so
+# behavior doesn't depend on what the calling shell happens to forward.
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
 # BuildKit injects TARGETARCH ("amd64" or "arm64") automatically.
 ARG TARGETARCH
 
