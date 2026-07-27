@@ -18,13 +18,23 @@
 # node-bootstrap's own local-exec already creates the moment each node's
 # Ansible run starts, with no Terraform state dependency at all.
 #
-# Assumes cluster_name matches this directory's name — true for every
-# example in this repo (Proxmox derives it that way explicitly; AWS's
-# hardcoded cluster_name happens to match its directory name by convention).
-# Run from the cluster directory (live/<provider>/clusters/<name>/).
+# Derives the cluster name from the working directory's path so it works both
+# from the cluster directory itself (single-node all-in-one layout,
+# live/<provider>/clusters/<name>/) and from a subunit of a multi-node cluster
+# (clusters/<name>/control-plane/ or clusters/<name>/node-pools/<pool>/): it
+# takes the path segment directly under the nearest `clusters/` ancestor. That
+# segment is the cluster_name (Proxmox derives it that way explicitly; AWS's
+# hardcoded cluster_name matches its directory name by convention). Falls back
+# to the current directory's basename when not under a `clusters/` path.
 set -euo pipefail
 
-CLUSTER_NAME=$(basename "$(pwd)")
+PWD_PATH="$(pwd)"
+if [[ "$PWD_PATH" == */clusters/* ]]; then
+  after="${PWD_PATH##*/clusters/}"   # e.g. "cluster-2/control-plane" or "cluster-1"
+  CLUSTER_NAME="${after%%/*}"        # -> "cluster-2" or "cluster-1"
+else
+  CLUSTER_NAME="$(basename "$PWD_PATH")"
+fi
 LOG_GLOB="/tmp/kube-compute-bootstrap-${CLUSTER_NAME}-"*".log"
 
 echo "Watching for ${CLUSTER_NAME}'s bootstrap log(s) — waiting if none have started yet (Ctrl-C to stop)..."

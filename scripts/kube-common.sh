@@ -42,6 +42,25 @@ cluster_provider() {
   echo "${provider}"
 }
 
+# cluster_name_from_pwd — derive the cluster name from the working directory.
+# Works both from the cluster directory itself (single-node all-in-one layout,
+# live/<provider>/clusters/<name>/) and from a subunit of a multi-node cluster
+# (clusters/<name>/control-plane/ or clusters/<name>/node-pools/<pool>/): it
+# takes the path segment directly under the nearest `clusters/` ancestor. That
+# segment is the cluster_name. Falls back to the current directory's basename
+# when not under a `clusters/` path. Kept in lockstep with kube-tail's inline
+# copy (kube-tail deliberately doesn't source this file).
+cluster_name_from_pwd() {
+  local pwd_path after
+  pwd_path="$(pwd)"
+  if [[ "${pwd_path}" == */clusters/* ]]; then
+    after="${pwd_path##*/clusters/}"   # e.g. "cluster-2/control-plane" or "cluster-1"
+    echo "${after%%/*}"                # -> "cluster-2" or "cluster-1"
+  else
+    echo "$(basename "${pwd_path}")"
+  fi
+}
+
 # terragrunt_outputs — read terragrunt output -json into TF_OUTPUTS, or exit
 # with a provider-neutral error.
 terragrunt_outputs() {
