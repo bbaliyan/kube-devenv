@@ -61,9 +61,57 @@ cluster_name_from_pwd() {
   fi
 }
 
+# terragrunt_run_mode — classify the current directory for the lifecycle verbs
+# (kube-init/kube-plan/kube-apply/kube-destroy). Echoes one of:
+#   single  the cwd is a single terragrunt unit (has its own terragrunt.hcl)
+#   all     the cwd is a multi-unit cluster root (no terragrunt.hcl of its own
+#           but units live beneath it) — drive it with `terragrunt run --all`
+#   none    neither (a misconfigured / wrong directory)
+# The multi-unit case is a multi-node cluster like proxmox/clusters/cluster-2,
+# whose control-plane/ and node-pools/<pool>/ units terragrunt orders by their
+# dependency DAG.
+terragrunt_run_mode() {
+  if [[ -f terragrunt.hcl ]]; then
+    echo single
+  elif find . -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -print -quit 2>/dev/null | grep -q .; then
+    echo all
+  else
+    echo none
+  fi
+}
+
+# resolve_control_plane_unit — make cluster-level verbs (kube-kubeconfig)
+# agnostic to single- vs multi-node layout. A single-node cluster and each unit
+# of a multi-node cluster are already terragrunt units (own terragrunt.hcl), so
+# this is a no-op there. When the cwd is a multi-node cluster ROOT (no
+# terragrunt.hcl of its own), cd into its control-plane/ unit — the kubeconfig
+# and API server always live on a server node, so that unit is the unambiguous
+# source regardless of how many workers the cluster has.
+resolve_control_plane_unit() {
+  [[ -f terragrunt.hcl ]] && return 0
+  if [[ -f control-plane/terragrunt.hcl ]]; then
+    echo "Multi-node cluster root: reading the kubeconfig from the control-plane unit." >&2
+    cd control-plane || exit 1
+    return 0
+  fi
+  echo "Error: '$(pwd)' has no terragrunt.hcl and no control-plane/ unit to read from." >&2
+  exit 1
+}
+
 # terragrunt_outputs — read terragrunt output -json into TF_OUTPUTS, or exit
-# with a provider-neutral error.
+# with a provider-neutral error. Per-node/read verbs operate on a single unit,
+# so if the cwd is a multi-node cluster root (no terragrunt.hcl of its own),
+# point the operator at the specific unit to select instead.
 terragrunt_outputs() {
+  if [[ ! -f terragrunt.hcl && "$(terragrunt_run_mode)" == "all" ]]; then
+    local rel
+    rel="$(pwd | sed 's|.*/live/|live/|')"
+    echo "Error: '$(pwd)' is a multi-node cluster root, not a single unit." >&2
+    echo "  Per-node verbs (kube-kubeconfig/kube-status/kube-shell/kube-start) act on" >&2
+    echo "  one unit. Select the control plane (for the kubeconfig/API) or a node pool:" >&2
+    echo "    select-cluster ${rel}/control-plane" >&2
+    exit 1
+  fi
   TF_OUTPUTS=$(terragrunt output -json) || {
     echo "Error: 'terragrunt output' failed (see output above) — common causes:" >&2
     echo "  wrong directory, expired provider credentials (AWS/Azure/Proxmox)," >&2

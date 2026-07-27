@@ -25,13 +25,30 @@ fi
 
 if [[ $# -eq 0 ]]; then
   mapfile -t CLUSTERS < <(
-    find "${WORKSPACE}/live" -path "*/clusters/*/terragrunt.hcl" \
-      -not -path "*/.terragrunt-cache/*" \
-      -not -path "*/.terraform/*" \
-      -print 2>/dev/null \
+    {
+      # Individual terragrunt units: single-node clusters, and each unit
+      # (control-plane, node-pools/<pool>) of a multi-node cluster. Pick one of
+      # these for per-node verbs (kube-kubeconfig/kube-status/kube-shell).
+      find "${WORKSPACE}/live" -path "*/clusters/*" -name terragrunt.hcl \
+        -not -path "*/.terragrunt-cache/*" \
+        -not -path "*/.terraform/*" \
+        -print 2>/dev/null \
+        | sed 's|/terragrunt.hcl$||'
+      # Multi-node cluster roots: a directory directly under clusters/ with no
+      # terragrunt.hcl of its own but units beneath it. Pick one of these for
+      # the lifecycle verbs, which drive all its units with `terragrunt run --all`.
+      find "${WORKSPACE}/live" -type d \
+        -not -path "*/.terragrunt-cache/*" \
+        -not -path "*/.terraform/*" 2>/dev/null \
+        | while IFS= read -r d; do
+            [[ "$(basename "$(dirname "$d")")" == "clusters" ]] || continue
+            [[ -f "$d/terragrunt.hcl" ]] && continue
+            find "$d" -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -print -quit 2>/dev/null \
+              | grep -q . && printf '%s\n' "$d"
+          done
+    } \
       | sed "s|${WORKSPACE}/||" \
-      | sed 's|/terragrunt.hcl$||' \
-      | sort
+      | sort -u
   )
 
   if [[ ${#CLUSTERS[@]} -eq 0 ]]; then
@@ -75,13 +92,20 @@ else
   fi
 fi
 
-if [[ ! -f "${TARGET}/terragrunt.hcl" ]]; then
-  echo "Error: no terragrunt.hcl found at '${TARGET}'" >&2
+if [[ ! -f "${TARGET}/terragrunt.hcl" ]] \
+   && ! find "${TARGET}" -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -print -quit 2>/dev/null | grep -q .; then
+  echo "Error: '${TARGET}' is neither a terragrunt unit nor a multi-node cluster root" >&2
   exit 1
 fi
 
 ABS="$(cd "${TARGET}" && pwd)"
-CLUSTER_NAME="$(basename "${ABS}")"
+# Display the path under clusters/ (e.g. "cluster-2" or "cluster-2/control-plane")
+# so a selected subunit isn't shown as a bare "control-plane".
+if [[ "${ABS}" == */clusters/* ]]; then
+  CLUSTER_NAME="${ABS##*/clusters/}"
+else
+  CLUSTER_NAME="$(basename "${ABS}")"
+fi
 WORKSPACE_NAME="$(basename "${WORKSPACE}")"
 
 mkdir -p "${WORKSPACE}/.vscode"

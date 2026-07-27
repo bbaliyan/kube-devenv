@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
-# kube-init — terragrunt init for the selected cluster.
-# Run from the cluster directory (live/<provider>/clusters/<name>/).
+# kube-init — terragrunt init for the selected cluster. Handles a single
+# terragrunt unit (single-node cluster) and a multi-node cluster root, which is
+# init'd across all its units with `terragrunt run --all`.
+# Run from the cluster directory (live/<provider>/clusters/<name>[/<unit>]/).
 set -euo pipefail
-terragrunt init "$@"
+source kube-common.sh
+
+case "$(terragrunt_run_mode)" in
+  single) terragrunt init "$@" ;;
+  all)    terragrunt run --all -- init "$@" ;;
+  *)
+    echo "Error: '$(pwd)' is neither a terragrunt unit nor a multi-node cluster root." >&2
+    exit 1
+    ;;
+esac
