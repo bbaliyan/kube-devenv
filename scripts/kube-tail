@@ -45,6 +45,33 @@ while true; do
   sleep 1
 done
 
+# A multi-node cluster's nodes don't all start bootstrapping at once: node-pool
+# workers' local-exec provisioners fire close together but not simultaneously,
+# and re-running kube-tail once a node-pool unit starts can catch a leftover
+# control-plane log already sitting on disk right as the workers' logs are
+# about to appear. Settle briefly after the first match so a lone/stale log
+# doesn't get auto-picked before its siblings show up — finalize once no new
+# log has appeared for GLOB_SETTLE_ROUNDS polls, capped by GLOB_SETTLE_MAX_ROUNDS
+# so a steady trickle of new nodes can't stall this indefinitely.
+GLOB_SETTLE_INTERVAL=0.5
+GLOB_SETTLE_ROUNDS=4
+GLOB_SETTLE_MAX_ROUNDS=20
+stable_rounds=0
+total_rounds=0
+prev_count="${#MATCHES[@]}"
+while [[ "${stable_rounds}" -lt "${GLOB_SETTLE_ROUNDS}" && "${total_rounds}" -lt "${GLOB_SETTLE_MAX_ROUNDS}" ]]; do
+  sleep "${GLOB_SETTLE_INTERVAL}"
+  # shellcheck disable=SC2206  # intentional glob expansion, not word-splitting
+  MATCHES=(${LOG_GLOB})
+  total_rounds=$((total_rounds + 1))
+  if [[ "${#MATCHES[@]}" -gt "${prev_count}" ]]; then
+    prev_count="${#MATCHES[@]}"
+    stable_rounds=0
+  else
+    stable_rounds=$((stable_rounds + 1))
+  fi
+done
+
 if [[ "${#MATCHES[@]}" -eq 1 ]]; then
   LOG="${MATCHES[0]}"
 else
