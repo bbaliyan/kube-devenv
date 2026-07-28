@@ -8,6 +8,15 @@
 set -euo pipefail
 source kube-common.sh
 
+# Ansible's profile_tasks callback prints each task's duration as it runs plus
+# a longest-first summary at the end; timer adds total playbook runtime. Only
+# takes effect for Proxmox, where node-bootstrap runs ansible-playbook as a
+# direct child of this shell (operator_connect mode) — AWS/Azure dispatch
+# ansible remotely (SSM/run-command), so this env var never reaches it there.
+# Exported unconditionally but overridable: an operator who already sets
+# ANSIBLE_CALLBACKS_ENABLED keeps their own value.
+export ANSIBLE_CALLBACKS_ENABLED="${ANSIBLE_CALLBACKS_ENABLED:-timer,profile_tasks}"
+
 MODE=$(terragrunt_run_mode)
 CLUSTER_DIR="$(pwd)"
 CLUSTER=$(cluster_name_from_pwd)
