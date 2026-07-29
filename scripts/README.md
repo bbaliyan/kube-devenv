@@ -17,14 +17,14 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-cloud-login` | Authenticate against the selected cluster's provider (`aws sso login` / `az login` / Proxmox token refresh). Provider is inferred from the cluster's `live/<provider>/...` path, not from Terraform state, so this works before the first `init`. |
 | `kube-init` | `terragrunt init` (multi-node root: `terragrunt run --all init`). |
 | `kube-plan` | `terragrunt plan` (multi-node root: `terragrunt run --all plan`). |
-| `kube-apply` | `terragrunt apply` (requires typing the cluster name; multi-node root: `terragrunt run --all apply`, control plane before node pools). |
+| `kube-apply` | `terragrunt apply` (requires typing the cluster name; multi-node root: `terragrunt run --all apply` — cluster-facts first, then control-plane and node-pool concurrently). |
 | `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
 | `kube-status` | Report RKE2 join status for a node — `not-started` / `in-progress` / `failed` / `complete`, derived live from the node's own `rke2-server`/`rke2-agent` systemd unit and (for a server node) its own `kubectl get node` entry (SSM / Azure run-command, no inbound port; SSH for Proxmox). No status file involved. Prompts to pick a node — status is per-node, not shared cluster-wide. |
 | `kube-tail` | Live-tail a node's Ansible bootstrap log (`/tmp/kube-compute-bootstrap-<node>.log`, local to whatever machine runs `apply` — same for AWS and Proxmox) while `terragrunt apply` runs in another terminal. Terraform/OpenTofu unconditionally suppresses that provisioner's own console output because its config touches sensitive values, so this is the only way to see live, task-by-task Ansible progress during a run. Unlike `kube-status`/`kube-shell`, doesn't read `terragrunt output` (those outputs don't exist until the whole apply finishes) — globs for logfiles by cluster name instead, so it works precisely during an in-progress apply. Prompts to pick a node if more than one is bootstrapping. |
 | `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml`. Always targets the genesis node. |
 | `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
 | `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
-| `kube-destroy` | `terragrunt destroy` (requires typing the cluster name; multi-node root: `terragrunt run --all destroy`, node pools before the control plane). |
+| `kube-destroy` | `terragrunt destroy` (requires typing the cluster name; multi-node root: `terragrunt run --all destroy` — control-plane and node-pool concurrently, then cluster-facts last). |
 | `kube-proxmox-login` | Refresh the 8h Proxmox API token over SSH. Proxmox-only; called internally by `kube-cloud-login`, or run directly. |
 | `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. |
 

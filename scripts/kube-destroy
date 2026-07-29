@@ -2,7 +2,9 @@
 # kube-destroy — destroy the selected cluster (requires typed confirmation).
 # Handles a single terragrunt unit (single-node cluster) and a multi-node
 # cluster root, which is destroyed across all its units in reverse dependency
-# order with `terragrunt run --all` (node pools before the control plane).
+# order with `terragrunt run --all`
+# (control-plane and node-pool destroy concurrently first, since neither depends on
+# the other; cluster-facts destroys last, since both of them depend on it).
 # Run from the cluster directory (live/<provider>/clusters/<name>[/<unit>]/).
 set -euo pipefail
 source kube-common.sh

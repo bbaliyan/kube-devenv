@@ -3,7 +3,9 @@
 # -auto-approve skips terragrunt's own plan-diff prompt — run 'kube-plan' first
 # to review changes. Handles a single terragrunt unit (single-node cluster) and
 # a multi-node cluster root, which is applied across all its units in dependency
-# order with `terragrunt run --all` (control plane before node pools).
+# order with `terragrunt run --all` (cluster-facts first; control-plane and node-pool
+# apply concurrently after that, since neither depends on the other — only on
+# cluster-facts).
 # Run from the cluster directory (live/<provider>/clusters/<name>[/<unit>]/).
 set -euo pipefail
 source kube-common.sh
