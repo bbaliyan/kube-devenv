@@ -5,11 +5,11 @@
 # nodes patch one at a time (etcd quorum tolerates losing at most one at a
 # time); workers patch after, with no such restriction.
 #
-# Proxmox only today — the playbook drives nodes via `qm guest exec` (no
-# SSH) and its cluster-directory derivation is hardcoded to live/proxmox/...
-# See kube-claude's docs/superpowers/specs/2026-08-01-os-rke2-upgrade-process-
-# design.md for the full design and current gaps (nothing here has been
-# verified against a live cluster yet).
+# Proxmox only today — the playbook drives nodes over SSH (same account/key
+# node-bootstrap itself connects with) and its cluster-directory derivation
+# is hardcoded to live/proxmox/... See kube-claude's docs/superpowers/specs/
+# 2026-08-01-os-rke2-upgrade-process-design.md for the full design and
+# current gaps.
 #
 # Run from the cluster directory (live/proxmox/clusters/<name>/ or any of its
 # units) — same as kube-apply/kube-destroy, typed cluster-name confirmation
@@ -23,7 +23,7 @@ PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
 
 if [[ "${PROVIDER}" != "proxmox" ]]; then
   echo "Error: kube-upgrade-os only supports Proxmox today (got provider '${PROVIDER}')." >&2
-  echo "  ops/upgrade-os.yml drives nodes via qm guest exec, which has no AWS/Azure equivalent yet." >&2
+  echo "  ops/upgrade-os.yml's cluster-directory derivation is hardcoded to live/proxmox/..." >&2
   exit 1
 fi
 
