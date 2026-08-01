@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# kube-upgrade-os — patch the OS on every node of the selected cluster
+# (kube-examples' ops/upgrade-os.yml): dnf update -y on each node, reboot
+# only when dnf needs-restarting -r actually says one is needed. Control-plane
+# nodes patch one at a time (etcd quorum tolerates losing at most one at a
+# time); workers patch after, with no such restriction.
+#
+# Proxmox only today — the playbook drives nodes via `qm guest exec` (no
+# SSH) and its cluster-directory derivation is hardcoded to live/proxmox/...
+# See kube-claude's docs/superpowers/specs/2026-08-01-os-rke2-upgrade-process-
+# design.md for the full design and current gaps (nothing here has been
+# verified against a live cluster yet).
+#
+# Run from the cluster directory (live/proxmox/clusters/<name>/ or any of its
+# units) — same as kube-apply/kube-destroy, typed cluster-name confirmation
+# since this can reboot every node in the cluster.
+set -euo pipefail
+source kube-common.sh
+
+CLUSTER_DIR="$(pwd)"
+CLUSTER=$(cluster_name_from_pwd)
+PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
+
+if [[ "${PROVIDER}" != "proxmox" ]]; then
+  echo "Error: kube-upgrade-os only supports Proxmox today (got provider '${PROVIDER}')." >&2
+  echo "  ops/upgrade-os.yml drives nodes via qm guest exec, which has no AWS/Azure equivalent yet." >&2
+  exit 1
+fi
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+PLAYBOOK="${REPO_ROOT}/ops/upgrade-os.yml"
+
+if [[ ! -f "${PLAYBOOK}" ]]; then
+  echo "Error: ${PLAYBOOK} not found — is the cwd inside a kube-examples checkout?" >&2
+  exit 1
+fi
+
+echo "About to patch every node of cluster '${CLUSTER}' — control-plane one at a time, then workers."
+echo "Nodes will reboot if (and only if) a patch actually requires it."
+echo -n "Type '${CLUSTER}' to confirm: "
+read -r CONFIRM
+
+if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
+  echo "Confirmation did not match. Aborting." >&2
+  exit 1
+fi
+
+exec ansible-playbook "${PLAYBOOK}" -e cluster="${CLUSTER}" "$@"

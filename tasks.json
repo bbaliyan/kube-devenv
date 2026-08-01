@@ -67,6 +67,14 @@
       "problemMatcher": []
     },
     {
+      "label": "$(sync) Upgrade OS",
+      "detail": "Patches every node's OS (Proxmox only) — control-plane one at a time, then workers. Prompts to confirm the cluster name.",
+      "type": "shell",
+      "command": "kube-run kube-upgrade-os",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
       "label": "$(trash) Destroy",
       "type": "shell",
       "command": "kube-run kube-destroy",
