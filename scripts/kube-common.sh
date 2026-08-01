@@ -120,26 +120,33 @@ terragrunt_outputs() {
   }
 }
 
-# select_node <tf_outputs_json> — pick a node from this directory's
-# control_plane_node_refs (control-plane) or worker_node_refs (Proxmox node pool),
-# whichever is present. Auto-selects with no prompt when there's exactly one
-# node (single-node clusters see no change in behavior). Prompts with fzf
-# (name + ip-or-instance_id) when there's more than one. Echoes the chosen
-# node as a JSON object on stdout, with "name" merged in.
+# _node_refs_from_outputs <tf_outputs_json> — echoes this unit's
+# control_plane_node_refs (control-plane) or worker_node_refs (Proxmox node
+# pool) map, whichever is present, or empty string if neither is. Shared by
+# select_node and select_node_any_unit so "which output holds the node list"
+# lives in one place.
 #
 # AWS/Azure node pools have no equivalent output (ASG/VMSS-managed — no
-# per-instance list Terraform tracks), so this errors clearly there rather
-# than silently targeting nothing.
-select_node() {
-  local tf_outputs="$1" refs_key refs_json="" count picked_name
-
+# per-instance list Terraform tracks) — callers see empty string there, same
+# as an unapplied unit.
+_node_refs_from_outputs() {
+  local tf_outputs="$1" refs_key refs_json=""
   for refs_key in control_plane_node_refs worker_node_refs; do
     refs_json=$(echo "${tf_outputs}" | jq -c --arg k "${refs_key}" '.[$k].value // empty')
-    if [[ -n "${refs_json}" && "${refs_json}" != "null" ]]; then
-      break
-    fi
+    [[ -n "${refs_json}" && "${refs_json}" != "null" ]] && break
     refs_json=""
   done
+  echo "${refs_json}"
+}
+
+# select_node <tf_outputs_json> — pick a node from this directory's node refs
+# (see _node_refs_from_outputs). Auto-selects with no prompt when there's
+# exactly one node (single-node clusters see no change in behavior). Prompts
+# with fzf (name + ip-or-instance_id) when there's more than one. Echoes the
+# chosen node as a JSON object on stdout, with "name" merged in.
+select_node() {
+  local tf_outputs="$1" refs_json count picked_name
+  refs_json=$(_node_refs_from_outputs "${tf_outputs}")
 
   if [[ -z "${refs_json}" ]]; then
     echo "Error: no control_plane_node_refs or worker_node_refs output in this directory." >&2
@@ -150,7 +157,7 @@ select_node() {
 
   count=$(echo "${refs_json}" | jq 'length')
   if [[ "${count}" -eq 0 ]]; then
-    echo "Error: ${refs_key} is empty." >&2
+    echo "Error: node refs output is empty." >&2
     exit 1
   fi
 
@@ -170,6 +177,79 @@ select_node() {
   echo "${refs_json}" | jq -c --arg n "${picked_name}" '.[$n] + {name: $n}'
 }
 
+# terragrunt_target_units — echo the terragrunt unit directories to search for
+# nodes from the cwd: itself when the cwd is a single unit (has its own
+# terragrunt.hcl), or control-plane + every node-pools/<pool> unit when the
+# cwd is a multi-node cluster root (terragrunt_run_mode == "all"). Used by
+# select_node_any_unit so per-node verbs work whether the operator selected a
+# specific unit or the cluster root itself.
+terragrunt_target_units() {
+  if [[ -f terragrunt.hcl ]]; then
+    pwd
+    return 0
+  fi
+  if [[ "$(terragrunt_run_mode)" != "all" ]]; then
+    echo "Error: '$(pwd)' has no terragrunt.hcl and no node-pool units beneath it." >&2
+    exit 1
+  fi
+  [[ -f control-plane/terragrunt.hcl ]] && echo "$(pwd)/control-plane"
+  if [[ -d node-pools ]]; then
+    find "$(pwd)/node-pools" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r d; do
+      [[ -f "${d}/terragrunt.hcl" ]] && echo "${d}"
+    done
+  fi
+}
+
+# select_node_any_unit — like select_node, but works whether the cwd is a
+# single terragrunt unit or a multi-node cluster root: aggregates every node
+# from every unit terragrunt_target_units finds into one fzf list (labeled
+# "unit  name  ip-or-instance_id"), auto-selecting with no prompt when
+# there's exactly one node total across all of them. Echoes the chosen node
+# as JSON, merging in "name", "provider" (that unit's node_provider), and
+# "unit" (absolute path to the unit directory the node came from) — callers
+# cd into "unit" before dispatching further provider calls (e.g. Azure's
+# resource_group_name) so those run in the right unit's context.
+select_node_any_unit() {
+  local unit units=() rows="" tf_outputs provider refs_json count picked_name
+
+  mapfile -t units < <(terragrunt_target_units)
+  if [[ "${#units[@]}" -eq 0 ]]; then
+    echo "Error: no terragrunt units found under '$(pwd)'." >&2
+    exit 1
+  fi
+
+  for unit in "${units[@]}"; do
+    tf_outputs=$(cd "${unit}" && terragrunt output -json 2>/dev/null) || continue
+    provider=$(echo "${tf_outputs}" | jq -r '.node_provider.value // empty')
+    refs_json=$(_node_refs_from_outputs "${tf_outputs}")
+    [[ -z "${refs_json}" ]] && continue
+    rows+=$(echo "${refs_json}" | jq -c --arg unit "${unit}" --arg provider "${provider}" \
+      'to_entries[] | .value + {name: .key, unit: $unit, provider: $provider}')$'\n'
+  done
+  rows="${rows%$'\n'}"
+
+  if [[ -z "${rows}" ]]; then
+    echo "Error: no nodes found in any unit under '$(pwd)' (state not applied yet?)." >&2
+    exit 1
+  fi
+
+  count=$(echo "${rows}" | wc -l | tr -d ' ')
+  if [[ "${count}" -eq 1 ]]; then
+    echo "${rows}"
+    return 0
+  fi
+
+  picked_name=$(echo "${rows}" | jq -r '"\(.unit | sub(".*/clusters/"; ""))\t\(.name)\t\(.ip // .instance_id)"' \
+    | fzf --prompt="Select node: " --height=15 --border --with-nth=1,2,3 --delimiter='\t' \
+          --bind='left-click:accept' \
+    | cut -f2) || {
+    echo "No node selected." >&2
+    exit 1
+  }
+
+  echo "${rows}" | jq -c --arg n "${picked_name}" 'select(.name == $n)' | head -1
+}
+
 # proxmox_host — parse the PVE hostname out of PROXMOX_VE_ENDPOINT, or exit.
 # Echoes the hostname on success.
 proxmox_host() {
@@ -184,13 +264,66 @@ proxmox_host() {
   echo "${host}"
 }
 
+# proxmox_control_plane_dir — resolve the control-plane terragrunt unit
+# directory for the cluster the cwd belongs to, regardless of which unit the
+# cwd actually is: already inside control-plane/, inside a node-pools/<pool>/
+# worker unit (walk up to the cluster root, then into control-plane/), or a
+# single-node all_in_one cluster (no control-plane/ subdir at all — the
+# cluster-root unit itself IS the control plane). Node-pool workers share the
+# control plane's Ansible SSH account/key (proxmox-node-pool exposes no ssh
+# outputs of its own — kube-examples' ops/upgrade-os.yml established this same
+# pattern), so ssh creds always get read from here.
+proxmox_control_plane_dir() {
+  local pwd_path clusters_root cp_dir
+  pwd_path="$(pwd)"
+  if [[ "${pwd_path}" != */clusters/* ]]; then
+    echo "Error: '${pwd_path}' is not under a live/<provider>/clusters/ path." >&2
+    exit 1
+  fi
+  clusters_root="${pwd_path%%/clusters/*}/clusters/$(echo "${pwd_path##*/clusters/}" | cut -d/ -f1)"
+  cp_dir="${clusters_root}/control-plane"
+  if [[ -d "${cp_dir}" ]]; then
+    echo "${cp_dir}"
+  else
+    echo "${clusters_root}"
+  fi
+}
+
 # proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
-# (not the PVE host). Defaults match live/proxmox/README.md's Part 2 setup:
-# the id_ed25519_kube_cluster key, almalinux user. Requires port 22 open to the
-# node (ingress_ports) — off by default, since the project's baseline design
-# has no inbound SSH to nodes; Proxmox consumers opt into it explicitly.
-proxmox_vm_ssh_key() { echo "${PROXMOX_VM_SSH_KEY:-${HOME}/.ssh/id_ed25519_kube_cluster}"; }
-proxmox_vm_ssh_user() { echo "${PROXMOX_VM_SSH_USER:-almalinux}"; }
+# (not the PVE host). Source of truth is the control-plane unit's own applied
+# state (terragrunt output -raw ansible_ssh_user / ansible_ssh_private_key_file
+# — the same two calls kube-examples' upgrade-os.yml makes) so these can't
+# drift from what Terraform actually applied. PROXMOX_VM_SSH_KEY/
+# PROXMOX_VM_SSH_USER remain an explicit override (e.g. connecting with a
+# personal key rather than Ansible's). Falls back further to the
+# id_ed25519_kube_cluster/almalinux default (live/proxmox/README.md's Part 2
+# setup — also Terraform's own variable default) when the control-plane unit
+# has no state applied yet or predates these outputs. Requires port 22 open to
+# the node (ingress_ports) — off by default, since the project's baseline
+# design has no inbound SSH to nodes; Proxmox consumers opt into it
+# explicitly.
+proxmox_vm_ssh_user() {
+  if [[ -n "${PROXMOX_VM_SSH_USER:-}" ]]; then
+    echo "${PROXMOX_VM_SSH_USER}"
+    return
+  fi
+  local cp_dir value
+  cp_dir=$(proxmox_control_plane_dir)
+  value=$(cd "${cp_dir}" && terragrunt output -raw ansible_ssh_user 2>/dev/null) || value=""
+  echo "${value:-almalinux}"
+}
+
+proxmox_vm_ssh_key() {
+  if [[ -n "${PROXMOX_VM_SSH_KEY:-}" ]]; then
+    echo "${PROXMOX_VM_SSH_KEY}"
+    return
+  fi
+  local cp_dir value
+  cp_dir=$(proxmox_control_plane_dir)
+  value=$(cd "${cp_dir}" && terragrunt output -raw ansible_ssh_private_key_file 2>/dev/null) || value=""
+  value="${value:-${HOME}/.ssh/id_ed25519_kube_cluster}"
+  echo "${value/#\~/${HOME}}"
+}
 
 # rewrite_kubeconfig <server> <cluster_name> — read an rke2 kubeconfig on stdin,
 # swap the loopback server for <server> and the default context/cluster/user

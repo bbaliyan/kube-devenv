@@ -3,18 +3,20 @@
 # AWS/Azure use an inbound-port-free control-plane primitive (SSM /
 # run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
 # the node — see live/proxmox/README.md).
-# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node when there's more than one (multi-node control-plane or node pool).
+# Run from either a specific unit (live/<provider>/clusters/<name>/[control-plane|
+# node-pools/<pool>]/) or a multi-node cluster root (live/<provider>/clusters/<name>/)
+# — select_node_any_unit aggregates nodes across every unit in the latter case.
+# Prompts to pick a node whenever there's more than one across whatever's in scope.
 set -euo pipefail
 source kube-common.sh
 
-terragrunt_outputs
-NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
-
-NODE=$(select_node "${TF_OUTPUTS}")
+NODE=$(select_node_any_unit)
 NODE_NAME=$(echo "${NODE}" | jq -r '.name')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
+NODE_PROVIDER=$(echo "${NODE}" | jq -r '.provider')
+NODE_UNIT=$(echo "${NODE}" | jq -r '.unit')
+cd "${NODE_UNIT}"
 
 case "${NODE_PROVIDER}" in
 
@@ -37,7 +39,7 @@ case "${NODE_PROVIDER}" in
     ;;
 
   azure)
-    RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
+    RESOURCE_GROUP=$(terragrunt output -raw resource_group_name)
     VM_NAME=$(basename "${NODE_INSTANCE_ID}")
     echo "Starting Azure run-command shell on ${NODE_NAME} (${VM_NAME})..."
     echo "(Azure run-command is non-interactive — use 'az serial-console' for a live session)"
