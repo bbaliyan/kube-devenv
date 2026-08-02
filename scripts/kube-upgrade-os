@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# kube-upgrade-os — patch the OS on every node of the selected cluster
-# (kube-examples' ops/upgrade-os.yml): dnf update -y on each node, reboot
-# only when dnf needs-restarting -r actually says one is needed. Control-plane
-# nodes patch one at a time (etcd quorum tolerates losing at most one at a
-# time); workers patch after, with no such restriction.
+# kube-upgrade-os — patch the OS on every node of the selected cluster, via
+# kube-examples' ops/upgrade-os.sh (which applies the cluster's os-patch/
+# terragrunt unit — kube-compute's node-os-patch module — and runs the
+# resulting Ansible playbook): dnf update -y on each node, reboot only when
+# dnf needs-restarting -r actually says one is needed. Control-plane nodes
+# patch one at a time (etcd quorum tolerates losing at most one at a time);
+# workers patch after, with no such restriction.
 #
-# Proxmox only today — the playbook drives nodes over SSH (same account/key
-# node-bootstrap itself connects with) and its cluster-directory derivation
-# is hardcoded to live/proxmox/... See kube-claude's docs/superpowers/specs/
+# Proxmox only today — node-os-patch's Proxmox transport is SSH (same
+# account/key node-bootstrap itself connects with), and no os-patch/ unit
+# exists for AWS/Azure clusters yet. See kube-claude's docs/superpowers/specs/
 # 2026-08-01-os-rke2-upgrade-process-design.md for the full design and
 # current gaps.
 #
@@ -23,15 +25,15 @@ PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
 
 if [[ "${PROVIDER}" != "proxmox" ]]; then
   echo "Error: kube-upgrade-os only supports Proxmox today (got provider '${PROVIDER}')." >&2
-  echo "  ops/upgrade-os.yml's cluster-directory derivation is hardcoded to live/proxmox/..." >&2
+  echo "  No os-patch/ terragrunt unit exists for AWS/Azure clusters yet." >&2
   exit 1
 fi
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
-PLAYBOOK="${REPO_ROOT}/ops/upgrade-os.yml"
+SCRIPT="${REPO_ROOT}/ops/upgrade-os.sh"
 
-if [[ ! -f "${PLAYBOOK}" ]]; then
-  echo "Error: ${PLAYBOOK} not found — is the cwd inside a kube-examples checkout?" >&2
+if [[ ! -f "${SCRIPT}" ]]; then
+  echo "Error: ${SCRIPT} not found — is the cwd inside a kube-examples checkout?" >&2
   exit 1
 fi
 
@@ -45,4 +47,4 @@ if [[ "${CONFIRM}" != "${CLUSTER}" ]]; then
   exit 1
 fi
 
-exec ansible-playbook "${PLAYBOOK}" -e cluster="${CLUSTER}" "$@"
+exec "${SCRIPT}" "${CLUSTER}" "$@"

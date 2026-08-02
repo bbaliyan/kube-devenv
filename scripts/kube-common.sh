@@ -271,7 +271,7 @@ proxmox_host() {
 # single-node all_in_one cluster (no control-plane/ subdir at all — the
 # cluster-root unit itself IS the control plane). Node-pool workers share the
 # control plane's Ansible SSH account/key (proxmox-node-pool exposes no ssh
-# outputs of its own — kube-examples' ops/upgrade-os.yml established this same
+# outputs of its own — kube-examples' os-patch tooling established this same
 # pattern), so ssh creds always get read from here.
 proxmox_control_plane_dir() {
   local pwd_path clusters_root cp_dir
@@ -292,8 +292,8 @@ proxmox_control_plane_dir() {
 # proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
 # (not the PVE host). Source of truth is the control-plane unit's own applied
 # state (terragrunt output -raw ansible_ssh_user / ansible_ssh_private_key_file
-# — the same two calls kube-examples' upgrade-os.yml makes) so these can't
-# drift from what Terraform actually applied. PROXMOX_VM_SSH_KEY/
+# — the same two outputs kube-compute's node-os-patch module itself consumes)
+# so these can't drift from what Terraform actually applied. PROXMOX_VM_SSH_KEY/
 # PROXMOX_VM_SSH_USER remain an explicit override (e.g. connecting with a
 # personal key rather than Ansible's). Falls back further to the
 # id_ed25519_kube_cluster/almalinux default (live/proxmox/README.md's Part 2
