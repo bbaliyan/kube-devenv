@@ -67,10 +67,10 @@
       "problemMatcher": []
     },
     {
-      "label": "$(sync) Upgrade OS",
+      "label": "$(sync) Patch OS",
       "detail": "Patches every node's OS (Proxmox only) — control-plane one at a time, then workers. Prompts to confirm the cluster name.",
       "type": "shell",
-      "command": "kube-run kube-upgrade-os",
+      "command": "kube-run kube-os-patch",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },

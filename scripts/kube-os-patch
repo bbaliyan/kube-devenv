@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kube-upgrade-os — patch the OS on every node of the selected cluster, via
+# kube-os-patch — patch the OS on every node of the selected cluster, via
 # kube-examples' ops/upgrade-os.sh (which applies the cluster's os-patch/
 # terragrunt unit — kube-compute's node-os-patch module — and runs the
 # resulting Ansible playbook): dnf update -y on each node, reboot only when
@@ -24,7 +24,7 @@ CLUSTER=$(cluster_name_from_pwd)
 PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
 
 if [[ "${PROVIDER}" != "proxmox" ]]; then
-  echo "Error: kube-upgrade-os only supports Proxmox today (got provider '${PROVIDER}')." >&2
+  echo "Error: kube-os-patch only supports Proxmox today (got provider '${PROVIDER}')." >&2
   echo "  No os-patch/ terragrunt unit exists for AWS/Azure clusters yet." >&2
   exit 1
 fi
