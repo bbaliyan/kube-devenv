@@ -9,9 +9,7 @@
 #
 # Proxmox only today — node-os-patch's Proxmox transport is SSH (same
 # account/key node-bootstrap itself connects with), and no os-patch/ unit
-# exists for AWS/Azure clusters yet. See kube-claude's docs/superpowers/specs/
-# 2026-08-01-os-rke2-upgrade-process-design.md for the full design and
-# current gaps.
+# exists for AWS/Azure clusters yet.
 #
 # Run from the cluster directory (live/proxmox/clusters/<name>/ or any of its
 # units) — same as kube-apply/kube-destroy, typed cluster-name confirmation
