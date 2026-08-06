@@ -32,6 +32,9 @@ ARG TOFU_VERSION=1.12.3
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
 ARG TERRAGRUNT_VERSION=1.0.8
 
+# renovate: datasource=github-releases depName=hashicorp/packer
+ARG PACKER_VERSION=1.14.2
+
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.36.2
 
@@ -102,6 +105,15 @@ RUN curl -fsSL "https://github.com/gruntwork-io/terragrunt/releases/download/v${
     -o /usr/local/bin/terragrunt \
     && chmod +x /usr/local/bin/terragrunt \
     && terragrunt --version
+
+# ── Packer ────────────────────────────────────────────────────────────────────
+
+RUN curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip" \
+    -o /tmp/packer.zip \
+    && unzip -q /tmp/packer.zip -d /usr/local/bin \
+    && rm /tmp/packer.zip \
+    && chmod +x /usr/local/bin/packer \
+    && packer version
 
 # ── kubectl ───────────────────────────────────────────────────────────────────
 
@@ -255,6 +267,7 @@ COPY tasks.json /usr/share/kube-devenv/tasks.json
 
 LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.terragrunt="${TERRAGRUNT_VERSION}" \
+      io.kube-devenv.version.packer="${PACKER_VERSION}" \
       io.kube-devenv.version.kubectl="${KUBECTL_VERSION}" \
       io.kube-devenv.version.helm="${HELM_VERSION}" \
       io.kube-devenv.version.sops="${SOPS_VERSION}" \
