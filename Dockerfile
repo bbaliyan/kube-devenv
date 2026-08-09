@@ -75,7 +75,7 @@ ARG SHFMT_VERSION=3.13.1
 # stops Renovate from silently proposing 2.20+; a reviewer bumping this past
 # 2.19.x must also confirm the base image's Python version first.
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.19.11
+ARG ANSIBLE_CORE_VERSION=2.21.2
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
