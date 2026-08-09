@@ -35,6 +35,9 @@ ARG TERRAGRUNT_VERSION=1.0.8
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.14.2
 
+# renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
+ARG CLUSTERCTL_VERSION=1.13.4
+
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.36.2
 
@@ -114,6 +117,15 @@ RUN curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_$
     && rm /tmp/packer.zip \
     && chmod +x /usr/local/bin/packer \
     && packer version
+
+# ── clusterctl ────────────────────────────────────────────────────────────────
+# kube-image's Proxmox bake (packer/proxmox/build.sh) shells out to clusterctl
+# to render CAPI core + CAPMOX install manifests at build time.
+
+RUN curl -fsSL "https://github.com/kubernetes-sigs/cluster-api/releases/download/v${CLUSTERCTL_VERSION}/clusterctl-linux-${TARGETARCH}" \
+    -o /usr/local/bin/clusterctl \
+    && chmod +x /usr/local/bin/clusterctl \
+    && clusterctl version
 
 # ── kubectl ───────────────────────────────────────────────────────────────────
 
@@ -268,6 +280,7 @@ COPY tasks.json /usr/share/kube-devenv/tasks.json
 LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.terragrunt="${TERRAGRUNT_VERSION}" \
       io.kube-devenv.version.packer="${PACKER_VERSION}" \
+      io.kube-devenv.version.clusterctl="${CLUSTERCTL_VERSION}" \
       io.kube-devenv.version.kubectl="${KUBECTL_VERSION}" \
       io.kube-devenv.version.helm="${HELM_VERSION}" \
       io.kube-devenv.version.sops="${SOPS_VERSION}" \
