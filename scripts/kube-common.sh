@@ -120,23 +120,32 @@ terragrunt_outputs() {
   }
 }
 
-# _node_refs_from_outputs <tf_outputs_json> — echoes this unit's
-# control_plane_node_refs (control-plane) or worker_node_refs (Proxmox node
-# pool) map, whichever is present, or empty string if neither is. Shared by
-# select_node and select_node_any_unit so "which output holds the node list"
-# lives in one place.
+# _node_refs_from_outputs <tf_outputs_json> — echoes this unit's full node
+# map (name -> {instance_id, ip, provider}), merging every source a unit
+# might expose:
+#   - control_plane_node_refs (a control-plane unit, split or merged layout)
+#   - worker_node_refs (a standalone Proxmox node-pool unit — old split layout)
+#   - node_pools.<pool>.worker_node_refs (the merged proxmox-cluster module —
+#     every kube-examples Proxmox cluster now uses this single-unit layout;
+#     its worker refs are nested per pool, not a top-level worker_node_refs
+#     key, unlike the old split control-plane/ + node-pools/<pool>/ layout).
+# Missing any of these contributes nothing (empty map), so this is safe
+# whether the unit is control-plane-only, node-pool-only, or the merged
+# composition. Shared by select_node and select_node_any_unit so "which
+# output(s) hold the node list" lives in one place.
 #
-# AWS/Azure node pools have no equivalent output (ASG/VMSS-managed — no
-# per-instance list Terraform tracks) — callers see empty string there, same
-# as an unapplied unit.
+# AWS/Azure node pools have no equivalent output at all (ASG/VMSS-managed —
+# no per-instance list Terraform tracks) — callers see empty string there,
+# same as an unapplied unit.
 _node_refs_from_outputs() {
-  local tf_outputs="$1" refs_key refs_json=""
-  for refs_key in control_plane_node_refs worker_node_refs; do
-    refs_json=$(echo "${tf_outputs}" | jq -c --arg k "${refs_key}" '.[$k].value // empty')
-    [[ -n "${refs_json}" && "${refs_json}" != "null" ]] && break
-    refs_json=""
-  done
-  echo "${refs_json}"
+  local tf_outputs="$1"
+  echo "${tf_outputs}" | jq -c '
+    (.control_plane_node_refs.value // {}) as $cp
+    | (.worker_node_refs.value // {}) as $w
+    | ((.node_pools.value // {}) | [.[].worker_node_refs // {}] | add // {}) as $pool_workers
+    | ($cp + $w + $pool_workers)
+    | if (. == {}) then empty else . end
+  '
 }
 
 # select_node <tf_outputs_json> — pick a node from this directory's node refs
