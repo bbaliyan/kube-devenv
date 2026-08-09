@@ -57,7 +57,7 @@ ARG OPENBAO_VERSION=2.6.1
 ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
-ARG TRIVY_VERSION=0.71.2
+ARG TRIVY_VERSION=0.73.0
 
 # renovate: datasource=github-releases depName=sigstore/cosign
 ARG COSIGN_VERSION=3.1.1
