@@ -40,7 +40,9 @@
     {
       "description": "Dockerfile ARG versions with inline Renovate annotations",
       "customType": "regex",
-      "fileMatch": ["(^|/)Dockerfile$"],
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\nARG [A-Z_]+_VERSION=(?<currentValue>[^\\s]+)"
       ],
@@ -49,7 +51,9 @@
     {
       "description": "devcontainer.json image digest pins",
       "customType": "regex",
-      "fileMatch": ["(^|/)devcontainer\\.json$"],
+      "managerFilePatterns": [
+        "/(^|/)devcontainer\\.json$/"
+      ],
       "matchStrings": [
         "\"image\":\\s*\"(?<depName>[^\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
