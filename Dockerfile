@@ -30,7 +30,7 @@ ARG TARGETARCH
 ARG TOFU_VERSION=1.12.5
 
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=1.0.8
+ARG TERRAGRUNT_VERSION=1.1.2
 
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.0
