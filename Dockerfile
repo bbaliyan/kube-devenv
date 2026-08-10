@@ -3,7 +3,7 @@
 # Builds for linux/amd64 and linux/arm64 via docker buildx.
 # All tool versions are managed by Renovate (inline annotations).
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
 LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core, make)"
@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-# debian:bookworm-slim ships no locale data (the `locales` package is stripped
+# debian:trixie-slim ships no locale data (the `locales` package is stripped
 # to save size), so any LANG/LC_ALL a host terminal forwards in (e.g. a macOS
 # en_US.UTF-8) fails to initialize here — breaks ansible-playbook outright
 # ("could not initialize the preferred locale") and would silently affect any
@@ -68,14 +68,12 @@ ARG YAMLFMT_VERSION=0.21.0
 # renovate: datasource=github-releases depName=mvdan/sh
 ARG SHFMT_VERSION=3.13.1
 
-# ansible-core 2.20+ requires Python >=3.12; this image's base
-# (debian:bookworm-slim) ships system python3 at 3.11 — pinned to the 2.19
-# line until the base image itself moves to a bookworm successor with 3.12.
-# renovate.json's existing "minor/major require manual review" rule already
-# stops Renovate from silently proposing 2.20+; a reviewer bumping this past
-# 2.19.x must also confirm the base image's Python version first.
+# ansible-core 2.20+ requires Python >=3.12 -- was pinned to the 2.19 line
+# while the base image was debian:bookworm-slim (system python3 3.11). Now
+# unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
+# against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.19.11
+ARG ANSIBLE_CORE_VERSION=2.21.2
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
