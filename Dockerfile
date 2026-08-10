@@ -33,7 +33,7 @@ ARG TOFU_VERSION=1.12.5
 ARG TERRAGRUNT_VERSION=1.0.8
 
 # renovate: datasource=github-releases depName=hashicorp/packer
-ARG PACKER_VERSION=1.14.2
+ARG PACKER_VERSION=1.16.0
 
 # renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
 ARG CLUSTERCTL_VERSION=1.13.4
