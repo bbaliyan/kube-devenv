@@ -134,7 +134,7 @@ jobs:
       # "this build is good" stamp, not something to create on a partial run.
       - name: Create GitHub Release
         if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: versions.md
           generate_release_notes: true
