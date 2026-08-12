@@ -48,8 +48,7 @@ cluster_provider() {
 # (clusters/<name>/control-plane/ or clusters/<name>/node-pools/<pool>/): it
 # takes the path segment directly under the nearest `clusters/` ancestor. That
 # segment is the cluster_name. Falls back to the current directory's basename
-# when not under a `clusters/` path. Kept in lockstep with kube-tail's inline
-# copy (kube-tail deliberately doesn't source this file).
+# when not under a `clusters/` path.
 cluster_name_from_pwd() {
   local pwd_path after
   pwd_path="$(pwd)"

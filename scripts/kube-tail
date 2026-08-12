@@ -1,82 +1,83 @@
 #!/usr/bin/env bash
-# kube-tail — live-tail a node's Ansible bootstrap log while `terragrunt
-# apply` runs in another terminal. node-bootstrap mirrors its whole run to
-# /tmp/kube-compute-bootstrap-<node_name>.log on this same machine (the one
-# running apply) via `tee` — Terraform/OpenTofu itself unconditionally
-# suppresses that provisioner's own console output because its config
-# touches sensitive values (the cluster tokens), so this is the only way to
-# watch live, task-by-task Ansible progress during a run. Works the same way
-# for AWS and Proxmox alike — the log is local to whatever machine runs
-# apply, not on the remote node itself.
+# kube-tail — live-tail a node's bootstrap log while `terragrunt apply` runs
+# in another terminal, or any time after.
 #
-# Deliberately does NOT use kube-common.sh's select_node/terragrunt_outputs
-# (unlike kube-status/kube-shell): those read
-# control_plane_node_refs/worker_node_refs via `terragrunt output`, but
-# Terraform only writes root outputs to state after the ENTIRE apply
-# finishes — they don't exist yet while a node's bootstrap is still running,
-# which is exactly when you want to tail it. This globs for the log files
-# node-bootstrap's own local-exec already creates the moment each node's
-# Ansible run starts, with no Terraform state dependency at all.
+# node-bootstrap's cloud-init payload is fire-and-forget: Terraform/OpenTofu
+# returns as soon as the payload is attached to the VM, with no visibility
+# into whether the node ever actually joins (see node-bootstrap/README.md's
+# "Watching progress during a real apply"). The node writes its own progress
+# to /var/log/kube-compute-bootstrap.log on itself — that log is the only
+# place to watch bootstrap progress, so this reaches it out-of-band the same
+# way kube-status/kube-shell reach a node: AWS/Azure via the inbound-port-free
+# control-plane primitive (SSM / run-command), Proxmox via direct SSH.
 #
-# Derives the cluster name from the working directory's path so it works both
-# from the cluster directory itself (single-node all-in-one layout,
-# live/<provider>/clusters/<name>/) and from a subunit of a multi-node cluster
-# (clusters/<name>/control-plane/ or clusters/<name>/node-pools/<pool>/): it
-# takes the path segment directly under the nearest `clusters/` ancestor. That
-# segment is the cluster_name (Proxmox derives it that way explicitly; AWS's
-# hardcoded cluster_name matches its directory name by convention). Falls back
-# to the current directory's basename when not under a `clusters/` path.
+# Previously (pre-cloud-init) this watched a local Ansible log this same
+# machine wrote via `tee` during `apply` — that file no longer exists now
+# that bootstrap runs entirely on the node itself, so this now goes back to
+# reading the node's own log remotely instead, same as kube-status/kube-shell.
+#
+# Run from either a specific unit (live/<provider>/clusters/<name>/[control-plane|
+# node-pools/<pool>]/) or a multi-node cluster root (live/<provider>/clusters/<name>/)
+# — select_node_any_unit aggregates nodes across every unit in the latter case.
+# Prompts to pick a node whenever there's more than one across whatever's in scope.
 set -euo pipefail
+source kube-common.sh
 
-PWD_PATH="$(pwd)"
-if [[ "$PWD_PATH" == */clusters/* ]]; then
-  after="${PWD_PATH##*/clusters/}"   # e.g. "cluster-2/control-plane" or "cluster-1"
-  CLUSTER_NAME="${after%%/*}"        # -> "cluster-2" or "cluster-1"
-else
-  CLUSTER_NAME="$(basename "$PWD_PATH")"
-fi
-LOG_GLOB="/tmp/kube-compute-bootstrap-${CLUSTER_NAME}-"*".log"
+BOOTSTRAP_LOG=/var/log/kube-compute-bootstrap.log
 
-echo "Watching for ${CLUSTER_NAME}'s bootstrap log(s) — waiting if none have started yet (Ctrl-C to stop)..."
-while true; do
-  # shellcheck disable=SC2206  # intentional glob expansion, not word-splitting
-  MATCHES=(${LOG_GLOB})
-  [[ -e "${MATCHES[0]}" ]] && break
-  sleep 1
-done
+NODE=$(select_node_any_unit)
+NODE_NAME=$(echo "${NODE}" | jq -r '.name')
+NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
+NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
+NODE_PROVIDER=$(echo "${NODE}" | jq -r '.provider')
+NODE_UNIT=$(echo "${NODE}" | jq -r '.unit')
+cd "${NODE_UNIT}"
 
-# A multi-node cluster's nodes don't all start bootstrapping at once: node-pool
-# workers' local-exec provisioners fire close together but not simultaneously,
-# and re-running kube-tail once a node-pool unit starts can catch a leftover
-# control-plane log already sitting on disk right as the workers' logs are
-# about to appear. Settle briefly after the first match so a lone/stale log
-# doesn't get auto-picked before its siblings show up — finalize once no new
-# log has appeared for GLOB_SETTLE_ROUNDS polls, capped by GLOB_SETTLE_MAX_ROUNDS
-# so a steady trickle of new nodes can't stall this indefinitely.
-GLOB_SETTLE_INTERVAL=0.5
-GLOB_SETTLE_ROUNDS=4
-GLOB_SETTLE_MAX_ROUNDS=20
-stable_rounds=0
-total_rounds=0
-prev_count="${#MATCHES[@]}"
-while [[ "${stable_rounds}" -lt "${GLOB_SETTLE_ROUNDS}" && "${total_rounds}" -lt "${GLOB_SETTLE_MAX_ROUNDS}" ]]; do
-  sleep "${GLOB_SETTLE_INTERVAL}"
-  # shellcheck disable=SC2206  # intentional glob expansion, not word-splitting
-  MATCHES=(${LOG_GLOB})
-  total_rounds=$((total_rounds + 1))
-  if [[ "${#MATCHES[@]}" -gt "${prev_count}" ]]; then
-    prev_count="${#MATCHES[@]}"
-    stable_rounds=0
-  else
-    stable_rounds=$((stable_rounds + 1))
-  fi
-done
+case "${NODE_PROVIDER}" in
 
-if [[ "${#MATCHES[@]}" -eq 1 ]]; then
-  LOG="${MATCHES[0]}"
-else
-  LOG=$(printf '%s\n' "${MATCHES[@]}" | fzf --prompt="Select node log: " --height=10 --border)
-fi
+  proxmox)
+    VM_SSH_KEY=$(proxmox_vm_ssh_key)
+    VM_SSH_USER=$(proxmox_vm_ssh_user)
+    echo "Tailing ${BOOTSTRAP_LOG} on ${NODE_NAME} (${NODE_IP})..."
+    # UserKnownHostsFile=/dev/null: see the identical comment in kube-shell —
+    # clusters here are deliberately disposable, so a rotated host key on
+    # every destroy/recreate at the same static IP is expected, not
+    # suspicious. `tail -F` (not `-f`): survives the log not existing yet
+    # (cloud-init may not have created it the instant the VM is reachable
+    # over SSH) and a rotation/truncation mid-watch.
+    ssh -i "${VM_SSH_KEY}" -t -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null \
+        "${VM_SSH_USER}@${NODE_IP}" \
+        "touch ${BOOTSTRAP_LOG}; tail -F -n +1 ${BOOTSTRAP_LOG}"
+    ;;
 
-echo "Tailing ${LOG}"
-tail -F -n +1 "${LOG}"
+  aws)
+    echo "Tailing ${BOOTSTRAP_LOG} on ${NODE_NAME} (${NODE_INSTANCE_ID})..."
+    # AWS-StartInteractiveCommand: an AWS-managed SSM document that runs a
+    # single command through Session Manager and streams its output live,
+    # instead of dropping into an interactive shell — the SSM equivalent of
+    # `ssh ... tail -F`. Session Manager has no "just stream a file" verb of
+    # its own, so this is the standard way to get one.
+    aws ssm start-session --target "${NODE_INSTANCE_ID}" \
+      --document-name "AWS-StartInteractiveCommand" \
+      --parameters "command=touch ${BOOTSTRAP_LOG}; tail -F -n +1 ${BOOTSTRAP_LOG}"
+    ;;
+
+  azure)
+    RESOURCE_GROUP=$(terragrunt output -raw resource_group_name)
+    VM_NAME=$(basename "${NODE_INSTANCE_ID}")
+    echo "Fetching ${BOOTSTRAP_LOG} from ${NODE_NAME} (${VM_NAME})..."
+    echo "(Azure run-command is non-interactive — this is a one-shot snapshot, not a live tail;" >&2
+    echo " re-run to refresh, or use 'az serial-console' for a live session.)" >&2
+    az vm run-command invoke \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${VM_NAME}" \
+      --command-id RunShellScript \
+      --scripts "tail -n 200 ${BOOTSTRAP_LOG} 2>/dev/null || echo '${BOOTSTRAP_LOG} does not exist yet'" \
+      --query "value[0].message" --output tsv
+    ;;
+
+  *)
+    echo "Error: unknown node_provider '${NODE_PROVIDER}'" >&2
+    exit 1
+    ;;
+esac

@@ -83,6 +83,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gnupg \
     jq \
+    less \
     make \
     openssh-client \
     python3 \
