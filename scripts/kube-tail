@@ -47,7 +47,7 @@ case "${NODE_PROVIDER}" in
     # over SSH) and a rotation/truncation mid-watch.
     ssh -i "${VM_SSH_KEY}" -t -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null \
         "${VM_SSH_USER}@${NODE_IP}" \
-        "touch ${BOOTSTRAP_LOG}; tail -F -n +1 ${BOOTSTRAP_LOG}"
+        "tail -F -n +1 ${BOOTSTRAP_LOG}"
     ;;
 
   aws)
@@ -59,7 +59,7 @@ case "${NODE_PROVIDER}" in
     # its own, so this is the standard way to get one.
     aws ssm start-session --target "${NODE_INSTANCE_ID}" \
       --document-name "AWS-StartInteractiveCommand" \
-      --parameters "command=touch ${BOOTSTRAP_LOG}; tail -F -n +1 ${BOOTSTRAP_LOG}"
+      --parameters "command=tail -F -n +1 ${BOOTSTRAP_LOG}"
     ;;
 
   azure)
