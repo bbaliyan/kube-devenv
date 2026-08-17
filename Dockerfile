@@ -30,7 +30,7 @@ ARG TARGETARCH
 ARG TOFU_VERSION=1.12.5
 
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=1.1.2
+ARG TERRAGRUNT_VERSION=1.1.3
 
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.0
@@ -42,7 +42,7 @@ ARG CLUSTERCTL_VERSION=1.14.0
 ARG KUBECTL_VERSION=1.36.3
 
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=4.2.3
+ARG HELM_VERSION=4.2.4
 
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION=3.13.3
@@ -73,7 +73,7 @@ ARG SHFMT_VERSION=3.13.1
 # unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
 # against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.21.2
+ARG ANSIBLE_CORE_VERSION=2.21.3
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ RUN curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/
 # ── fzf ───────────────────────────────────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=junegunn/fzf
-ARG FZF_VERSION=0.74.2
+ARG FZF_VERSION=0.74.3
 
 RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${TARGETARCH}.tar.gz" \
     | tar -xz -C /usr/local/bin fzf \
