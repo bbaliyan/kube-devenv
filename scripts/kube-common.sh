@@ -237,7 +237,10 @@ select_node_any_unit() {
   rows="${rows%$'\n'}"
 
   if [[ -z "${rows}" ]]; then
-    echo "Error: no nodes found in any unit under '$(pwd)' (state not applied yet?)." >&2
+    echo "Error: no nodes found in any unit under '$(pwd)'." >&2
+    echo "  Either state genuinely isn't applied yet, or this container has never" >&2
+    echo "  run 'terragrunt init' here (.terraform/.terragrunt-cache are gitignored" >&2
+    echo "  and don't survive a devcontainer rebuild) — try 'kube-init' first." >&2
     exit 1
   fi
 
