@@ -44,7 +44,8 @@ if [[ "${MODE}" == "all" ]]; then
   # --non-interactive suppresses terragrunt's own run-queue prompt; the typed
   # cluster-name confirmation above is our single, deliberate gate. -auto-approve
   # only silences the tofu layer, not terragrunt's run-queue prompt.
-  terragrunt run --all --non-interactive -- apply -auto-approve "$@"
+  # --backend-bootstrap: see kube-init.
+  terragrunt run --all --non-interactive --backend-bootstrap -- apply -auto-approve "$@"
 else
-  terragrunt apply -auto-approve "$@"
+  terragrunt apply --backend-bootstrap -auto-approve "$@"
 fi
