@@ -3,12 +3,16 @@
 # terragrunt unit (single-node cluster) and a multi-node cluster root, which is
 # init'd across all its units with `terragrunt run --all`.
 # Run from the cluster directory (live/<provider>/clusters/<name>[/<unit>]/).
+# --backend-bootstrap: Terragrunt no longer auto-creates a missing backend
+# (e.g. the state S3 bucket) on plain init. Without it, init also fails
+# resolving any `dependency` block, since each one is fetched via its own
+# fresh, uninitialized working copy.
 set -euo pipefail
 source kube-common.sh
 
 case "$(terragrunt_run_mode)" in
-  single) terragrunt init "$@" ;;
-  all)    terragrunt run --all -- init "$@" ;;
+  single) terragrunt init --backend-bootstrap "$@" ;;
+  all)    terragrunt run --all --backend-bootstrap -- init "$@" ;;
   *)
     echo "Error: '$(pwd)' is neither a terragrunt unit nor a multi-node cluster root." >&2
     exit 1
