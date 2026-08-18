@@ -51,13 +51,14 @@ case "${NODE_PROVIDER}" in
     ;;
 
   aws)
-    echo "Tailing ${BOOTSTRAP_LOG} on ${NODE_NAME} (${NODE_INSTANCE_ID})..."
+    AWS_REGION=$(terragrunt output -raw aws_region)
+    echo "Tailing ${BOOTSTRAP_LOG} on ${NODE_NAME} (${NODE_INSTANCE_ID}) in ${AWS_REGION}..."
     # AWS-StartInteractiveCommand: an AWS-managed SSM document that runs a
     # single command through Session Manager and streams its output live,
     # instead of dropping into an interactive shell — the SSM equivalent of
     # `ssh ... tail -F`. Session Manager has no "just stream a file" verb of
     # its own, so this is the standard way to get one.
-    aws ssm start-session --target "${NODE_INSTANCE_ID}" \
+    aws ssm start-session --target "${NODE_INSTANCE_ID}" --region "${AWS_REGION}" \
       --document-name "AWS-StartInteractiveCommand" \
       --parameters "command=tail -F -n +1 ${BOOTSTRAP_LOG}"
     ;;

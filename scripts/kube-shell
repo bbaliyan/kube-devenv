@@ -34,8 +34,9 @@ case "${NODE_PROVIDER}" in
     ;;
 
   aws)
-    echo "Starting SSM session on ${NODE_NAME} (${NODE_INSTANCE_ID})..."
-    aws ssm start-session --target "${NODE_INSTANCE_ID}"
+    AWS_REGION=$(terragrunt output -raw aws_region)
+    echo "Starting SSM session on ${NODE_NAME} (${NODE_INSTANCE_ID}) in ${AWS_REGION}..."
+    aws ssm start-session --target "${NODE_INSTANCE_ID}" --region "${AWS_REGION}"
     ;;
 
   azure)

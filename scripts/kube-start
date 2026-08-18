@@ -15,8 +15,9 @@ NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 case "${NODE_PROVIDER}" in
 
   aws)
-    echo "Starting EC2 instance ${NODE_NAME} (${NODE_INSTANCE_ID})..."
-    aws ec2 start-instances --instance-ids "${NODE_INSTANCE_ID}" \
+    AWS_REGION=$(echo "${TF_OUTPUTS}" | jq -r '.aws_region.value')
+    echo "Starting EC2 instance ${NODE_NAME} (${NODE_INSTANCE_ID}) in ${AWS_REGION}..."
+    aws ec2 start-instances --instance-ids "${NODE_INSTANCE_ID}" --region "${AWS_REGION}" \
       --query 'StartingInstances[0].CurrentState.Name' --output text
     ;;
 

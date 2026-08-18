@@ -39,13 +39,15 @@ case "${NODE_PROVIDER}" in
     ;;
 
   aws)
+    AWS_REGION=$(echo "${TF_OUTPUTS}" | jq -r '.aws_region.value')
     aws ssm send-command \
       --instance-ids "${NODE_INSTANCE_ID}" \
+      --region "${AWS_REGION}" \
       --document-name "AWS-RunShellScript" \
       --parameters "commands=[$(jq -Rs . <<<"${PROBE_SCRIPT}")]" \
       --query "Command.CommandId" --output text \
       | xargs -I{} aws ssm get-command-invocation \
-          --instance-id "${NODE_INSTANCE_ID}" --command-id {} \
+          --instance-id "${NODE_INSTANCE_ID}" --region "${AWS_REGION}" --command-id {} \
           --query "StandardOutputContent" --output text
     ;;
 
