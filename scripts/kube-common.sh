@@ -4,17 +4,6 @@
 # kube-cloud-login). Sourced, not run directly: `source kube-common.sh`
 # (found via PATH like the other scripts).
 
-# Terragrunt's default way of resolving a `dependency` block (clone the
-# target unit into a throwaway .terragrunt-cache copy, then run
-# `tofu output -json` there) needs that copy to be backend-initialized
-# too, and --backend-bootstrap on the outer command doesn't reach it — so
-# any unit with a dependency on an already-applied unit fails with
-# "Backend initialization required" on a clean checkout. Reading the
-# dependency's outputs straight from its S3 state object sidesteps the
-# clone entirely. Fine here: every backend is S3, none use OpenTofu state
-# encryption.
-export TG_EXPERIMENT="${TG_EXPERIMENT:-dependency-fetch-output-from-state}"
-
 # selected_cluster_dir — resolve the persisted 'Select Cluster' choice to an
 # absolute path, or exit with a clear error. Echoes the path on success.
 selected_cluster_dir() {
