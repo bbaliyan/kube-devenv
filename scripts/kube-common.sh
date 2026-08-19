@@ -60,6 +60,19 @@ cluster_name_from_pwd() {
   fi
 }
 
+# cluster_region_from_pwd — derive the region segment from the working
+# directory, for providers whose live/ layout puts one between the provider
+# and clusters/ (currently live/aws/<region>/clusters/<name>/...; region.hcl
+# itself derives aws_region the same way — basename(dirname(...)) — so this
+# is the authoritative value, not a guess). Path-based like cluster_provider,
+# so it works without terragrunt state or cloud credentials. Echoes empty
+# string for providers with no region segment (e.g. live/proxmox/clusters/<name>/...).
+cluster_region_from_pwd() {
+  local pwd_path
+  pwd_path="$(pwd)"
+  echo "${pwd_path}" | sed -n 's|.*/live/[^/]*/\([^/]*\)/clusters/.*|\1|p'
+}
+
 # terragrunt_run_mode — classify the current directory for the lifecycle verbs
 # (kube-init/kube-plan/kube-apply/kube-destroy). Echoes one of:
 #   single  the cwd is a single terragrunt unit (has its own terragrunt.hcl)
