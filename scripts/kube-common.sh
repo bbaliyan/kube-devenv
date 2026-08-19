@@ -336,6 +336,21 @@ proxmox_vm_ssh_key() {
   echo "${value/#\~/${HOME}}"
 }
 
+# remove_stale_unsuffixed_kubeconfig <cluster_name> — kube-kubeconfig used to
+# write every provider's file as ~/.kube/<cluster>.yaml before region
+# suffixing existed. When a provider now writes a region-suffixed file for
+# that cluster, delete any leftover unsuffixed one: it's a stale artifact of
+# the same cluster, and left in place it permanently shadows the current
+# file(s) in kube-secrets' glob match.
+remove_stale_unsuffixed_kubeconfig() {
+  local cluster_name="$1" stale_path
+  stale_path="${HOME}/.kube/${cluster_name}.yaml"
+  if [[ -f "${stale_path}" ]]; then
+    echo "Removing stale kubeconfig without region suffix: ${stale_path}"
+    rm -f "${stale_path}"
+  fi
+}
+
 # rewrite_kubeconfig <server> <cluster_name> — read an rke2 kubeconfig on stdin,
 # swap the loopback server for <server> and the default context/cluster/user
 # name for <cluster_name>, write to stdout.
