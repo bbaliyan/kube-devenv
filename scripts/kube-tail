@@ -11,11 +11,6 @@
 # way kube-status/kube-shell reach a node: AWS/Azure via the inbound-port-free
 # control-plane primitive (SSM / run-command), Proxmox via direct SSH.
 #
-# Previously (pre-cloud-init) this watched a local Ansible log this same
-# machine wrote via `tee` during `apply` — that file no longer exists now
-# that bootstrap runs entirely on the node itself, so this now goes back to
-# reading the node's own log remotely instead, same as kube-status/kube-shell.
-#
 # Run from either a specific unit (live/<provider>/clusters/<name>/[control-plane|
 # node-pools/<pool>]/) or a multi-node cluster root (live/<provider>/clusters/<name>/)
 # — select_node_any_unit aggregates nodes across every unit in the latter case.
