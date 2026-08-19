@@ -88,7 +88,7 @@ Typical order of use, top to bottom:
 | **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
 | **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
 | **Watch** | Poll bootstrap status until the node reports complete (or times out). |
-| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml`. |
+| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml` (`-<region>` suffix where the provider has a region concept, so same-named clusters in different regions don't collide). |
 | **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
 | **Shell** | Break-glass shell session on the node, no inbound port required. |
 | **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
