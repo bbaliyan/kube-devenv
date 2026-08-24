@@ -27,7 +27,7 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.12.5
+ARG TOFU_VERSION=1.12.6
 
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
 ARG TERRAGRUNT_VERSION=1.1.3
@@ -39,7 +39,7 @@ ARG PACKER_VERSION=1.16.0
 ARG CLUSTERCTL_VERSION=1.14.0
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION=1.36.3
+ARG KUBECTL_VERSION=1.36.4
 
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION=4.2.4
@@ -51,7 +51,7 @@ ARG SOPS_VERSION=3.13.3
 ARG AGE_VERSION=1.3.1
 
 # renovate: datasource=github-releases depName=openbao/openbao
-ARG OPENBAO_VERSION=2.6.1
+ARG OPENBAO_VERSION=2.6.2
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
