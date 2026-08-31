@@ -30,7 +30,7 @@ ARG TARGETARCH
 ARG TOFU_VERSION=1.12.6
 
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=1.1.3
+ARG TERRAGRUNT_VERSION=1.1.4
 
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.0
@@ -48,7 +48,7 @@ ARG HELM_VERSION=4.2.4
 ARG SOPS_VERSION=3.13.3
 
 # renovate: datasource=github-releases depName=FiloSottile/age
-ARG AGE_VERSION=1.3.1
+ARG AGE_VERSION=1.3.2
 
 # renovate: datasource=github-releases depName=openbao/openbao
 ARG OPENBAO_VERSION=2.6.2
