@@ -76,10 +76,14 @@ ARG SHFMT_VERSION=3.14.0
 ARG ANSIBLE_CORE_VERSION=2.21.3
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
+# dnsutils: provides nsupdate, which kube-compute's dns-registration module
+# shells out to via a local-exec provisioner during `tofu apply`/`destroy` —
+# without it, apply fails at that step with a plain "command not found".
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    dnsutils \
     git \
     gnupg \
     jq \
