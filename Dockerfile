@@ -66,7 +66,7 @@ ARG COSIGN_VERSION=3.1.3
 ARG YAMLFMT_VERSION=0.21.0
 
 # renovate: datasource=github-releases depName=mvdan/sh
-ARG SHFMT_VERSION=3.13.1
+ARG SHFMT_VERSION=3.14.0
 
 # ansible-core 2.20+ requires Python >=3.12 -- was pinned to the 2.19 line
 # while the base image was debian:bookworm-slim (system python3 3.11). Now
