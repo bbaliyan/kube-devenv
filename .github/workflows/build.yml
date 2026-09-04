@@ -3,6 +3,11 @@ name: Build and publish image
 on:
   push:
     tags: ["v*"]
+    branches: ["main"]
+    paths:
+      - Dockerfile
+      - scripts/**
+      - tasks.json
   pull_request:
     paths:
       - Dockerfile
@@ -129,11 +134,13 @@ jobs:
               bash -s < .github/scripts/dump-versions.sh
           } > versions.md
 
-      # Only runs for an actual tag push (this workflow's only non-PR trigger),
-      # and only once everything above has succeeded — a Release is the
-      # "this build is good" stamp, not something to create on a partial run.
+      # Tag pushes only — a plain main-branch push (added so Trivy/SARIF
+      # results land against the default branch, see the scan/upload-sarif
+      # steps above) has no tag for this action to attach a release to, and
+      # a Release is the "this build is good, cut version X" stamp, not
+      # something to create on every main commit.
       - name: Create GitHub Release
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           body_path: versions.md
