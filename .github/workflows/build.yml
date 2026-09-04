@@ -13,6 +13,7 @@ on:
       - Dockerfile
       - scripts/**
       - tasks.json
+  workflow_dispatch: {}
 
 permissions:
   contents: write        # required to create the GitHub Release
