@@ -27,7 +27,7 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
 | `kube-destroy` | `terragrunt destroy` (requires typing the cluster name; multi-node root: `terragrunt run --all destroy` — control-plane and node-pool concurrently, then cluster-facts last). |
 | `kube-proxmox-login` | Refresh the 8h Proxmox API token over SSH. Proxmox-only; called internally by `kube-cloud-login`, or run directly. |
-| `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. |
+| `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. Drops any task carrying a `providers` array unless the repo has a matching `live/<provider>/` directory, so a repo never shows a button its provider can't run; the key is stripped from the output. A repo with no `live/` keeps everything. |
 
 ## How provider dispatch works
 

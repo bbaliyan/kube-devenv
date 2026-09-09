@@ -6,6 +6,13 @@
 #   kube-tasks-merge file1.json [file2.json]   # base + specified files in order
 #
 # Output: .vscode/tasks.json
+#
+# A task may carry a "providers" array naming the providers its verb actually
+# works on. Those tasks are dropped unless the repo has clusters for one of
+# them (a live/<provider>/ directory), so a repo never shows a button that
+# would fail the moment it's pressed. The key is stripped from the output —
+# it's ours, not VS Code's. Tasks without the key are kept unconditionally,
+# and so is everything if the repo has no live/ directory to read.
 set -euo pipefail
 
 BASE="/usr/share/kube-devenv/tasks.json"
@@ -24,13 +31,18 @@ for f in "${CUSTOM_FILES[@]}"; do
   [[ -f "$f" ]] && INPUT_FILES+=("$f")
 done
 
-if [[ ${#INPUT_FILES[@]} -eq 1 ]]; then
-  cp "${BASE}" "${OUTPUT}"
-  echo "kube-tasks-merge: $(jq '.tasks|length' "${BASE}") standard tasks → ${OUTPUT}"
-  exit 0
+# Providers this repo actually has clusters for. Empty (no live/ directory, or
+# an empty one) disables filtering rather than hiding every provider-specific
+# task — a consumer laid out differently should lose nothing.
+AVAILABLE_PROVIDERS="[]"
+if [[ -d "live" ]]; then
+  AVAILABLE_PROVIDERS=$(
+    for d in live/*/; do [[ -d "${d}" ]] && basename "${d}"; done \
+      | jq -Rsc 'split("\n") | map(select(. != ""))'
+  )
 fi
 
-jq -s '
+jq -s --argjson available "${AVAILABLE_PROVIDERS}" '
   .[0] as $base |
   {
     version: $base.version,
@@ -40,6 +52,14 @@ jq -s '
       # base task by reusing its label. Original position is preserved.
       | reduce .[] as $t ({}; . + {($t.label): $t})
       | [.[]]
+      # Drop provider-specific tasks with no matching live/<provider>.
+      | map(select(
+          (.providers // []) as $needed |
+          ($needed | length) == 0
+          or ($available | length) == 0
+          or (($needed - ($needed - $available)) | length) > 0
+        ))
+      | map(del(.providers))
     ),
     inputs: ([.[].inputs // []] | add)
   }
@@ -48,4 +68,9 @@ jq -s '
 
 BASE_COUNT=$(jq '.tasks|length' "${BASE}")
 TOTAL_COUNT=$(jq '.tasks|length' "${OUTPUT}")
-echo "kube-tasks-merge: ${BASE_COUNT} standard + $((TOTAL_COUNT - BASE_COUNT)) custom = ${TOTAL_COUNT} tasks → ${OUTPUT}"
+CUSTOM_COUNT=$(( ${#INPUT_FILES[@]} - 1 ))
+if [[ ${CUSTOM_COUNT} -eq 0 ]]; then
+  echo "kube-tasks-merge: ${BASE_COUNT} standard → ${TOTAL_COUNT} tasks → ${OUTPUT}"
+else
+  echo "kube-tasks-merge: ${BASE_COUNT} standard + custom → ${TOTAL_COUNT} tasks → ${OUTPUT}"
+fi

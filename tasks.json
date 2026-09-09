@@ -68,6 +68,7 @@
     },
     {
       "label": "$(sync) Patch OS",
+      "providers": ["proxmox"],
       "detail": "Patches every node's OS (Proxmox only) — control-plane one at a time, then workers. Prompts to confirm the cluster name.",
       "type": "shell",
       "command": "kube-run kube-os-patch",
