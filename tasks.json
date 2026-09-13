@@ -31,7 +31,7 @@
     },
     {
       "label": "$(debug-start) Start Node",
-      "detail": "Only needed when resuming a previously stopped cluster — skip for a brand-new apply.",
+      "detail": "Start one stopped node, or all of them. Only needed when resuming a stopped cluster.",
       "type": "shell",
       "command": "kube-run kube-start",
       "presentation": { "reveal": "always", "panel": "dedicated" },
@@ -39,7 +39,7 @@
     },
     {
       "label": "$(output) Tail",
-      "detail": "Live Ansible task-by-task progress during Apply — run in a separate panel alongside it.",
+      "detail": "Live-tail a node's bootstrap log. Apply returns before a node finishes joining.",
       "type": "shell",
       "command": "kube-run kube-tail",
       "presentation": { "reveal": "always", "panel": "dedicated" },
@@ -63,6 +63,14 @@
       "label": "$(terminal) Shell",
       "type": "shell",
       "command": "kube-run kube-shell",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(debug-stop) Stop Node",
+      "detail": "Stop one node, or all of them, rather than waiting for a schedule. Start Node brings them back.",
+      "type": "shell",
+      "command": "kube-run kube-stop",
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
     },

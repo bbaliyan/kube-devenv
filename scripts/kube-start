@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
-# kube-start — start a stopped node.
+# kube-start — start stopped nodes: one, or every node of the cluster.
 # Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node when there's more than one (multi-node control-plane or node pool).
+# to pick a node, or all of them, when there's more than one.
 set -euo pipefail
 source kube-common.sh
 
 terragrunt_outputs
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
-NODE=$(select_node "${TF_OUTPUTS}")
-NODE_NAME=$(echo "${NODE}" | jq -r '.name')
-NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
+NODES=$(select_nodes "${TF_OUTPUTS}")
+mapfile -t INSTANCE_IDS < <(echo "${NODES}" | jq -r '.instance_id')
+echo "Starting $(echo "${NODES}" | jq -r '.name' | paste -sd' ')..."
 
 case "${NODE_PROVIDER}" in
 
   aws)
     AWS_REGION=$(echo "${TF_OUTPUTS}" | jq -r '.aws_region.value')
-    echo "Starting EC2 instance ${NODE_NAME} (${NODE_INSTANCE_ID}) in ${AWS_REGION}..."
-    aws ec2 start-instances --instance-ids "${NODE_INSTANCE_ID}" --region "${AWS_REGION}" \
-      --query 'StartingInstances[0].CurrentState.Name' --output text
+    aws ec2 start-instances --instance-ids "${INSTANCE_IDS[@]}" --region "${AWS_REGION}" \
+      --query 'StartingInstances[].[InstanceId,CurrentState.Name]' --output text
     ;;
 
   azure)
     RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
-    VM_NAME=$(basename "${NODE_INSTANCE_ID}")
-    echo "Starting Azure VM ${NODE_NAME} (${VM_NAME}) in resource group ${RESOURCE_GROUP}..."
-    az vm start --resource-group "${RESOURCE_GROUP}" --name "${VM_NAME}"
+    for id in "${INSTANCE_IDS[@]}"; do
+      az vm start --resource-group "${RESOURCE_GROUP}" --name "$(basename "${id}")"
+    done
     ;;
 
   proxmox)
@@ -33,8 +32,9 @@ case "${NODE_PROVIDER}" in
     # to pmxcfs directly), so this uses the same root SSH access as
     # kube-proxmox-login, not the tofu ops user.
     PROXMOX_HOST=$(proxmox_host)
-    echo "Starting Proxmox VM ${NODE_NAME} (${NODE_INSTANCE_ID})..."
-    ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm start ${NODE_INSTANCE_ID}"
+    for id in "${INSTANCE_IDS[@]}"; do
+      ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm start ${id}"
+    done
     ;;
 
   *)

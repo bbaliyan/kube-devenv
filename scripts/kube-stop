@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# kube-stop — stop nodes: one, or every node of the cluster.
+# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
+# to pick a node, or all of them, when there's more than one. Stopping every
+# node of an AWS cluster also scales its autoscaled groups to zero, as the
+# nightly schedule does: a group replaces a stopped instance rather than
+# leaving it stopped.
+set -euo pipefail
+source kube-common.sh
+
+terragrunt_outputs
+NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
+
+NODES=$(select_nodes "${TF_OUTPUTS}")
+mapfile -t INSTANCE_IDS < <(echo "${NODES}" | jq -r '.instance_id')
+ALL_NODES=$(( ${#INSTANCE_IDS[@]} == $(_node_refs_from_outputs "${TF_OUTPUTS}" | jq 'length') ))
+echo "Stopping $(echo "${NODES}" | jq -r '.name' | paste -sd' ')..."
+
+case "${NODE_PROVIDER}" in
+
+  aws)
+    AWS_REGION=$(echo "${TF_OUTPUTS}" | jq -r '.aws_region.value')
+    aws ec2 stop-instances --instance-ids "${INSTANCE_IDS[@]}" --region "${AWS_REGION}" \
+      --query 'StoppingInstances[].[InstanceId,CurrentState.Name]' --output text
+    if (( ALL_NODES )); then
+      for group in $(echo "${TF_OUTPUTS}" | jq -r '(.autoscaled_nodes.value // {})[].autoscaling_groups[].name'); do
+        echo "Scaling ${group} to zero..."
+        aws autoscaling set-desired-capacity --auto-scaling-group-name "${group}" \
+          --desired-capacity 0 --region "${AWS_REGION}"
+      done
+    fi
+    ;;
+
+  azure)
+    RESOURCE_GROUP=$(echo "${TF_OUTPUTS}" | jq -r '.resource_group_name.value')
+    for id in "${INSTANCE_IDS[@]}"; do
+      az vm deallocate --resource-group "${RESOURCE_GROUP}" --name "$(basename "${id}")"
+    done
+    ;;
+
+  proxmox)
+    # Root SSH for qm, as in kube-start.
+    PROXMOX_HOST=$(proxmox_host)
+    for id in "${INSTANCE_IDS[@]}"; do
+      ssh "${PROXMOX_ROOT_SSH_USER:-root}@${PROXMOX_HOST}" "/usr/sbin/qm shutdown ${id}"
+    done
+    ;;
+
+  *)
+    echo "Error: unknown node_provider '${NODE_PROVIDER}'" >&2
+    exit 1
+    ;;
+esac

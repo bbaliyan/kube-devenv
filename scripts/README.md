@@ -18,13 +18,14 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 | `kube-init` | `terragrunt init` (multi-node root: `terragrunt run --all init`). |
 | `kube-plan` | `terragrunt plan` (multi-node root: `terragrunt run --all plan`). |
 | `kube-apply` | `terragrunt apply` (requires typing the cluster name; multi-node root: `terragrunt run --all apply` — cluster-facts first, then control-plane and node-pool concurrently). |
-| `kube-start` | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
+| `kube-start` | Start stopped nodes (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick one node, or all of them, when there's more than one. |
+| `kube-stop` | Stop nodes (EC2 stop / Azure VM deallocate / Proxmox VM shutdown) rather than waiting for a schedule. Prompts to pick one node, or all of them; stopping all of an AWS cluster also scales its autoscaled groups to zero. |
 | `kube-status` | Report RKE2 join status for a node — `not-started` / `in-progress` / `failed` / `complete`, derived live from the node's own `rke2-server`/`rke2-agent` systemd unit and (for a server node) its own `kubectl get node` entry (SSM / Azure run-command, no inbound port; SSH for Proxmox). No status file involved. Prompts to pick a node — status is per-node, not shared cluster-wide. |
 | `kube-os-patch` | Patch the OS on every node of the cluster (`ops/upgrade-os.sh` in kube-examples, which applies kube-compute's `node-os-patch` module): `dnf update -y`, reboot only when actually needed. Control-plane nodes one at a time, then workers. Requires typing the cluster name. Proxmox only — drives nodes over SSH, no AWS/Azure equivalent yet. |
-| `kube-tail` | Live-tail a node's Ansible bootstrap log (`/tmp/kube-compute-bootstrap-<node>.log`, local to whatever machine runs `apply` — same for AWS and Proxmox) while `terragrunt apply` runs in another terminal. Terraform/OpenTofu unconditionally suppresses that provisioner's own console output because its config touches sensitive values, so this is the only way to see live, task-by-task Ansible progress during a run. Unlike `kube-status`/`kube-shell`, doesn't read `terragrunt output` (those outputs don't exist until the whole apply finishes) — globs for logfiles by cluster name instead, so it works precisely during an in-progress apply. Prompts to pick a node if more than one is bootstrapping. |
+| `kube-tail` | Live-tail a node's bootstrap log (`/var/log/kube-compute-bootstrap.log` on the node, over SSM / SSH; a one-shot snapshot on Azure). Apply returns as soon as the boot payload is attached, before the node joins, so this is how to watch it. Prompts to pick a node when there's more than one. |
 | `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml` (`~/.kube/<cluster>-<region>.yaml` for providers with a region concept, so same-named clusters in different regions don't overwrite each other). Always targets the genesis node. |
 | `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
-| `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node on a multi-node control-plane or Proxmox node pool. |
+| `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node when there's more than one. |
 | `kube-destroy` | `terragrunt destroy` (requires typing the cluster name; multi-node root: `terragrunt run --all destroy` — control-plane and node-pool concurrently, then cluster-facts last). |
 | `kube-proxmox-login` | Refresh the 8h Proxmox API token over SSH. Proxmox-only; called internally by `kube-cloud-login`, or run directly. |
 | `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. Drops any task carrying a `providers` array unless the repo has a matching `live/<provider>/` directory, so a repo never shows a button its provider can't run; the key is stripped from the output. A repo with no `live/` keeps everything. |
@@ -35,7 +36,7 @@ yourself or use `kube-run <verb>` the same way the tasks do.
 just call plain `terragrunt <verb>`, and Terragrunt resolves the right provider module
 from the `terragrunt.hcl` in the current directory.
 
-`kube-status`/`kube-shell`/`kube-kubeconfig`/`kube-start` do call provider-specific
+`kube-status`/`kube-shell`/`kube-tail`/`kube-kubeconfig`/`kube-start`/`kube-stop` do call provider-specific
 APIs, so they read `node_provider` from `terragrunt output -json` (the cluster's own
 applied state) and branch on it — correct by construction, since a cluster under
 `live/aws/...` can only ever produce `node_provider = "aws"`.
@@ -66,12 +67,12 @@ the verb:
 
 ## Picking a node on a multi-node cluster
 
-A cluster's control-plane can have more than one node, and a Proxmox node pool can
-have more than one worker. `kube-shell`, `kube-status`, and `kube-start` handle this by
-reading the directory's `control_plane_node_refs` (control-plane) or `worker_node_refs`
-(Proxmox node pool) output — a map of every node in that unit, not just the genesis
-one — and prompting with `fzf` to pick one when there's more than a single entry. With
-exactly one node (the common case), there's no prompt — same as before.
+A cluster can have more than one control-plane node, Proxmox node pools, and AWS
+static node groups. `kube-shell`, `kube-tail`, `kube-status`, `kube-start` and
+`kube-stop` read every node Terraform tracks — `control_plane_node_refs`,
+`worker_node_refs`, `node_pools.<pool>.worker_node_refs` and
+`static_nodes.<group>.node_refs` — and prompt with `fzf` when there's more than one.
+`kube-start` and `kube-stop` also offer "all". With exactly one node, there's no prompt.
 
 `kube-kubeconfig` deliberately stays pinned to the genesis node: unlike join status,
 which is genuinely per-node (each node bootstraps independently), the kubeconfig's
@@ -79,7 +80,6 @@ server address gets rewritten to the cluster's shared FQDN/IP regardless of whic
 the raw file was read from — so once a node has joined, which one you fetch from
 doesn't change the result.
 
-This doesn't work for AWS/Azure **node pools** specifically — those are
-ASG/VMSS-managed, so Terraform has no per-instance list to read at all (`kube-shell`/
-`kube-status`/`kube-start` don't work against an AWS/Azure node-pool directory today,
-independent of this).
+Autoscaled nodes (AWS Auto Scaling groups / Azure VMSS) are not listed: Terraform has
+no per-instance list for them. Stopping all nodes of an AWS cluster scales those groups
+to zero instead.

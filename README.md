@@ -86,11 +86,12 @@ Typical order of use, top to bottom:
 | **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. Run this before anything below — Init and Start Node both need it. |
 | **Init** | `terragrunt init` for the selected cluster. |
 | **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
-| **Start Node** | Start a stopped node (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
-| **Tail** | Poll bootstrap status until the node reports complete (or times out). |
+| **Start Node** | Start one stopped node, or all of them (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
+| **Tail** | Live-tail a node's bootstrap log. Apply returns before a node finishes joining, so this is how to watch it. |
 | **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml` (`-<region>` suffix where the provider has a region concept, so same-named clusters in different regions don't collide). |
 | **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
-| **Shell** | Break-glass shell session on the node, no inbound port required. |
+| **Shell** | Break-glass shell session on a node, no inbound port required. |
+| **Stop Node** | Stop one node, or all of them, rather than waiting for a schedule. Stopping all nodes of an AWS cluster also scales its autoscaled groups to zero. |
 | **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
 
 Prefer the terminal, or need this outside VS Code (CI, scripting)? Every task is a thin

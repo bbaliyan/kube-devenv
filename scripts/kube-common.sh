@@ -141,21 +141,22 @@ terragrunt_outputs() {
 #     every kube-examples Proxmox cluster now uses this single-unit layout;
 #     its worker refs are nested per pool, not a top-level worker_node_refs
 #     key, unlike the old split control-plane/ + node-pools/<pool>/ layout).
+#   - static_nodes.<group>.node_refs (aws-cluster's fixed worker groups)
 # Missing any of these contributes nothing (empty map), so this is safe
 # whether the unit is control-plane-only, node-pool-only, or the merged
-# composition. Shared by select_node and select_node_any_unit so "which
-# output(s) hold the node list" lives in one place.
+# composition. Shared by select_node, select_nodes and select_node_any_unit so
+# "which output(s) hold the node list" lives in one place.
 #
-# AWS/Azure node pools have no equivalent output at all (ASG/VMSS-managed —
-# no per-instance list Terraform tracks) — callers see empty string there,
-# same as an unapplied unit.
+# Autoscaled nodes (ASG/VMSS-managed) have no per-instance list Terraform
+# tracks, so they never appear here.
 _node_refs_from_outputs() {
   local tf_outputs="$1"
   echo "${tf_outputs}" | jq -c '
     (.control_plane_node_refs.value // {}) as $cp
     | (.worker_node_refs.value // {}) as $w
     | ((.node_pools.value // {}) | [.[].worker_node_refs // {}] | add // {}) as $pool_workers
-    | ($cp + $w + $pool_workers)
+    | ((.static_nodes.value // {}) | [.[].node_refs // {}] | add // {}) as $static
+    | ($cp + $w + $pool_workers + $static)
     | if (. == {}) then empty else . end
   '
 }
@@ -196,6 +197,35 @@ select_node() {
   }
 
   echo "${refs_json}" | jq -c --arg n "${picked_name}" '.[$n] + {name: $n}'
+}
+
+# select_nodes <tf_outputs_json> — like select_node, for verbs that also make
+# sense on the whole cluster (kube-start/kube-stop): with more than one node,
+# the picker's first entry is "all". Echoes one JSON object per chosen node,
+# with "name" merged in.
+select_nodes() {
+  local tf_outputs="$1" refs_json picked_name=all
+  refs_json=$(_node_refs_from_outputs "${tf_outputs}")
+
+  if [[ -z "${refs_json}" ]]; then
+    echo "Error: no node refs output in this directory." >&2
+    exit 1
+  fi
+
+  if [[ "$(echo "${refs_json}" | jq 'length')" -gt 1 ]]; then
+    picked_name=$({
+      printf 'all\tevery node\n'
+      echo "${refs_json}" | jq -r 'to_entries[] | "\(.key)\t\(.value.ip // .value.instance_id)"'
+    } | fzf --prompt="Select node: " --height=12 --border --with-nth=1,2 --delimiter='\t' \
+          --bind='left-click:accept' \
+      | cut -f1) || {
+      echo "No node selected." >&2
+      exit 1
+    }
+  fi
+
+  echo "${refs_json}" | jq -c --arg n "${picked_name}" \
+    'to_entries[] | select($n == "all" or .key == $n) | .value + {name: .key}'
 }
 
 # terragrunt_target_units — echo the terragrunt unit directories to search for
