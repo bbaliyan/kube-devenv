@@ -41,7 +41,7 @@ ARG TERRAGRUNT_VERSION=1.1.3
 ARG PACKER_VERSION=1.16.0
 
 # renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
-ARG CLUSTERCTL_VERSION=1.14.1
+ARG CLUSTERCTL_VERSION=1.14.2
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.37.0
@@ -78,7 +78,7 @@ ARG SHFMT_VERSION=3.14.1
 # unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
 # against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.21.3
+ARG ANSIBLE_CORE_VERSION=2.21.4
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 # dnsutils: provides nsupdate, which kube-compute's dns-registration module
@@ -212,7 +212,7 @@ RUN curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/
 # ── fzf ───────────────────────────────────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=junegunn/fzf
-ARG FZF_VERSION=0.74.3
+ARG FZF_VERSION=0.74.4
 
 RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${TARGETARCH}.tar.gz" \
     | tar -xz -C /usr/local/bin fzf \
