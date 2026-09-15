@@ -47,7 +47,7 @@ ARG CLUSTERCTL_VERSION=1.14.2
 ARG KUBECTL_VERSION=1.37.0
 
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=4.2.4
+ARG HELM_VERSION=4.3.0
 
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION=3.13.3
