@@ -18,7 +18,7 @@ source kube-common.sh
 terragrunt_outputs
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
-NODE=$(select_node "${TF_OUTPUTS}")
+NODE=$(select_node "${TF_OUTPUTS}" k8s)
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 

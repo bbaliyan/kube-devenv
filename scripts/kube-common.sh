@@ -134,7 +134,7 @@ terragrunt_outputs() {
   }
 }
 
-# _node_refs_from_outputs <tf_outputs_json> — echoes this unit's full node
+# _node_refs_from_outputs <tf_outputs_json> [k8s] — echoes this unit's full node
 # map (name -> {instance_id, ip, provider}), merging every source a unit
 # might expose:
 #   - control_plane_node_refs (a control-plane unit, split or merged layout)
@@ -144,6 +144,9 @@ terragrunt_outputs() {
 #     its worker refs are nested per pool, not a top-level worker_node_refs
 #     key, unlike the old split control-plane/ + node-pools/<pool>/ layout).
 #   - static_nodes.<group>.node_refs (aws-cluster's fixed worker groups)
+#   - extra_node_refs (machines the caller adds next to the cluster that aren't
+#     Kubernetes nodes, such as a Windows dev machine; left out when the
+#     second argument is "k8s", for verbs that talk to RKE2 on the node)
 # Missing any of these contributes nothing (empty map), so this is safe
 # whether the unit is control-plane-only, node-pool-only, or the merged
 # composition. Shared by select_node, select_nodes and select_node_any_unit so
@@ -152,25 +155,26 @@ terragrunt_outputs() {
 # Autoscaled nodes (ASG/VMSS-managed) have no per-instance list Terraform
 # tracks, so they never appear here.
 _node_refs_from_outputs() {
-  local tf_outputs="$1"
-  echo "${tf_outputs}" | jq -c '
+  local tf_outputs="$1" scope="${2:-all}"
+  echo "${tf_outputs}" | jq -c --arg scope "${scope}" '
     (.control_plane_node_refs.value // {}) as $cp
     | (.worker_node_refs.value // {}) as $w
     | ((.node_pools.value // {}) | [.[].worker_node_refs // {}] | add // {}) as $pool_workers
     | ((.static_nodes.value // {}) | [.[].node_refs // {}] | add // {}) as $static
-    | ($cp + $w + $pool_workers + $static)
+    | (if $scope == "k8s" then {} else (.extra_node_refs.value // {}) end) as $extra
+    | ($cp + $w + $pool_workers + $static + $extra)
     | if (. == {}) then empty else . end
   '
 }
 
-# select_node <tf_outputs_json> — pick a node from this directory's node refs
-# (see _node_refs_from_outputs). Auto-selects with no prompt when there's
+# select_node <tf_outputs_json> [k8s] — pick a node from this directory's node refs
+# (see _node_refs_from_outputs; "k8s" leaves out extra_node_refs). Auto-selects with no prompt when there's
 # exactly one node (single-node clusters see no change in behavior). Prompts
 # with fzf (name + ip-or-instance_id) when there's more than one. Echoes the
 # chosen node as a JSON object on stdout, with "name" merged in.
 select_node() {
-  local tf_outputs="$1" refs_json count picked_name
-  refs_json=$(_node_refs_from_outputs "${tf_outputs}")
+  local tf_outputs="$1" scope="${2:-all}" refs_json count picked_name
+  refs_json=$(_node_refs_from_outputs "${tf_outputs}" "${scope}")
 
   if [[ -z "${refs_json}" ]]; then
     echo "Error: no control_plane_node_refs or worker_node_refs output in this directory." >&2
@@ -253,7 +257,7 @@ terragrunt_target_units() {
   fi
 }
 
-# select_node_any_unit — like select_node, but works whether the cwd is a
+# select_node_any_unit [k8s] — like select_node, but works whether the cwd is a
 # single terragrunt unit or a multi-node cluster root: aggregates every node
 # from every unit terragrunt_target_units finds into one fzf list (labeled
 # "unit  name  ip-or-instance_id"), auto-selecting with no prompt when
@@ -263,7 +267,7 @@ terragrunt_target_units() {
 # cd into "unit" before dispatching further provider calls (e.g. Azure's
 # resource_group_name) so those run in the right unit's context.
 select_node_any_unit() {
-  local unit units=() rows="" tf_outputs provider refs_json count picked_name
+  local scope="${1:-all}" unit units=() rows="" tf_outputs provider refs_json count picked_name
 
   mapfile -t units < <(terragrunt_target_units)
   if [[ "${#units[@]}" -eq 0 ]]; then
@@ -274,7 +278,7 @@ select_node_any_unit() {
   for unit in "${units[@]}"; do
     tf_outputs=$(cd "${unit}" && terragrunt output -json 2>/dev/null) || continue
     provider=$(echo "${tf_outputs}" | jq -r '.node_provider.value // empty')
-    refs_json=$(_node_refs_from_outputs "${tf_outputs}")
+    refs_json=$(_node_refs_from_outputs "${tf_outputs}" "${scope}")
     [[ -z "${refs_json}" ]] && continue
     rows+=$(echo "${refs_json}" | jq -c --arg unit "${unit}" --arg provider "${provider}" \
       'to_entries[] | .value + {name: .key, unit: $unit, provider: $provider}')$'\n'
