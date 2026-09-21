@@ -74,6 +74,12 @@ static node groups. `kube-shell`, `kube-tail`, `kube-status`, `kube-start` and
 `static_nodes.<group>.node_refs` — and prompt with `fzf` when there's more than one.
 `kube-start` and `kube-stop` also offer "all". With exactly one node, there's no prompt.
 
+A cluster can also list machines that sit next to it but aren't Kubernetes nodes, such as
+a Windows dev machine, in an `extra_node_refs` output of the same shape
+(`{ "<name>" = { instance_id = "...", provider = "aws" } }`). `kube-start`, `kube-stop`
+and `kube-shell` include them; `kube-tail` and `kube-status` leave them out, since they
+read RKE2's state on the node.
+
 `kube-kubeconfig` deliberately stays pinned to the genesis node: unlike join status,
 which is genuinely per-node (each node bootstraps independently), the kubeconfig's
 server address gets rewritten to the cluster's shared FQDN/IP regardless of which node

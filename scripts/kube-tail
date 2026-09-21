@@ -20,7 +20,7 @@ source kube-common.sh
 
 BOOTSTRAP_LOG=/var/log/kube-compute-bootstrap.log
 
-NODE=$(select_node_any_unit)
+NODE=$(select_node_any_unit k8s)
 NODE_NAME=$(echo "${NODE}" | jq -r '.name')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
