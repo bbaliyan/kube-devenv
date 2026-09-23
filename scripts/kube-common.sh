@@ -387,10 +387,11 @@ proxmox_vm_ssh_key() {
 
 # rewrite_kubeconfig <server> <cluster_name> — read an rke2 kubeconfig on stdin,
 # swap the loopback server for <server> and the default context/cluster/user
-# name for <cluster_name>, write to stdout.
+# name for <cluster_name>, write to stdout. Only a "default" that is a value of
+# its own is renamed, never one inside a certificate blob.
 rewrite_kubeconfig() {
   local server="$1" cluster_name="$2"
-  sed "s|127\.0\.0\.1|${server}|g; s|default|${cluster_name}|g"
+  sed -E "s|127\.0\.0\.1|${server}|g; s|(:[[:space:]]+)default[[:space:]]*$|\1${cluster_name}|"
 }
 
 # rke2_status_probe_script — echoes a shell script (as a single string) that,

@@ -88,7 +88,7 @@ Typical order of use, top to bottom:
 | **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
 | **Start Node** | Start one stopped node, or all of them (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
 | **Tail** | Live-tail a node's bootstrap log. Apply returns before a node finishes joining, so this is how to watch it. |
-| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml` (`-<region>` suffix where the provider has a region concept, so same-named clusters in different regions don't collide). |
+| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml` (`-<region>` suffix where the provider has a region concept, so same-named clusters in different regions don't collide). `<cluster>` is the name the cluster module reports, which a repo may qualify beyond the folder name. |
 | **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
 | **Shell** | Break-glass shell session on a node, no inbound port required. |
 | **Stop Node** | Stop one node, or all of them, rather than waiting for a schedule. Stopping all nodes of an AWS cluster also scales its autoscaled groups to zero. |
