@@ -60,21 +60,6 @@ cluster_name_from_pwd() {
   fi
 }
 
-# cluster_region_from_pwd — derive the region segment from the working
-# directory, for providers whose live/ layout puts one between the provider
-# and clusters/: live/aws/<region>/clusters/<name>/..., or with an environment
-# level, live/aws/<region>/<env>/clusters/<name>/.... The region is always the
-# segment right after the provider, which is also how the terragrunt config
-# derives aws_region, so this is the authoritative value, not a guess.
-# Path-based like cluster_provider, so it works without terragrunt state or
-# cloud credentials. Echoes empty string for providers with no region segment
-# (e.g. live/proxmox/clusters/<name>/...).
-cluster_region_from_pwd() {
-  local pwd_path
-  pwd_path="$(pwd)"
-  echo "${pwd_path}" | sed -n 's|.*/live/[^/]*/\([^/]*\)/\(.*/\)\{0,1\}clusters/.*|\1|p'
-}
-
 # terragrunt_run_mode — classify the current directory for the lifecycle verbs
 # (kube-init/kube-plan/kube-apply/kube-destroy). Echoes one of:
 #   single  the cwd is a single terragrunt unit (has its own terragrunt.hcl)
@@ -383,6 +368,26 @@ proxmox_vm_ssh_key() {
   value=$(cd "${cp_dir}" && terragrunt output -raw ansible_ssh_private_key_file 2>/dev/null) || value=""
   value="${value:-${HOME}/.ssh/id_ed25519_kube_cluster}"
   echo "${value/#\~/${HOME}}"
+}
+
+# cluster_name_from_outputs <tf_outputs_json> — the name the cluster gives itself, which need not
+# be its folder's: a repo may qualify it, with an environment say, so that two clusters of the same
+# name stay apart. Falls back to the folder for a module that outputs no cluster_name.
+cluster_name_from_outputs() {
+  local name
+  name=$(echo "$1" | jq -r '.cluster_name.value // empty')
+  echo "${name:-$(cluster_name_from_pwd)}"
+}
+
+# kubeconfig_stem <tf_outputs_json> — names the kubeconfig file and, via rewrite_kubeconfig, the
+# context/cluster/user inside it: the cluster name, plus the region for providers that have one so
+# same-named clusters in different regions get distinct files and don't collide if their
+# kubeconfigs are ever merged. Every verb that writes or reads that file takes the name from here.
+kubeconfig_stem() {
+  local name region
+  name=$(cluster_name_from_outputs "$1")
+  region=$(echo "$1" | jq -r '.aws_region.value // .azure_region.value // empty')
+  echo "${name}${region:+-${region}}"
 }
 
 # rewrite_kubeconfig <server> <cluster_name> — read an rke2 kubeconfig on stdin,
