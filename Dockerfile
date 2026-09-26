@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core, make)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws and ansible.windows collections, make)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -79,6 +79,19 @@ ARG SHFMT_VERSION=3.14.1
 # against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
 ARG ANSIBLE_CORE_VERSION=2.21.4
+
+# renovate: datasource=pypi depName=ansible-lint
+ARG ANSIBLE_LINT_VERSION=26.9.0
+
+# botocore is not pinned: boto3 constrains it to a matching release.
+# renovate: datasource=pypi depName=boto3
+ARG BOTO3_VERSION=1.43.103
+
+# renovate: datasource=galaxy-collection depName=amazon.aws
+ARG AMAZON_AWS_VERSION=11.4.0
+
+# renovate: datasource=galaxy-collection depName=ansible.windows
+ARG ANSIBLE_WINDOWS_VERSION=3.8.0
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 # dnsutils: provides nsupdate, which kube-compute's dns-registration module
@@ -228,19 +241,6 @@ RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "aarch64") \
     && rm -rf /tmp/aws /tmp/awscli.zip \
     && aws --version
 
-# ── Azure CLI ────────────────────────────────────────────────────────────────
-# Installed via the Microsoft apt repo (supports arm64 and amd64).
-
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
-    && echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/microsoft.gpg] \
-       https://packages.microsoft.com/repos/azure-cli/ bookworm main" \
-    > /etc/apt/sources.list.d/azure-cli.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends azure-cli \
-    && rm -rf /var/lib/apt/lists/* \
-    && az --version
-
 # ── AWS Session Manager Plugin ────────────────────────────────────────────────
 # Not Renovate-managed — AWS does not publish versioned releases to GitHub.
 
@@ -251,23 +251,32 @@ RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_
     && rm /tmp/session-manager-plugin.deb \
     && session-manager-plugin --version
 
-# ── Ansible (RKE2 node-bootstrap) ────────────────────────────────────────────
+# ── Ansible ──────────────────────────────────────────────────────────────────
 # kube-compute's node-bootstrap module triggers `ansible-playbook` via a
 # Terraform local-exec provisioner during `terragrunt apply` — this image is
 # where that apply runs, so ansible-core must be present here or apply fails
-# at the local-exec step with a plain "command not found". Only the engine
-# lives here: playbook-specific dependencies (the amazon.aws collection for
-# AWS SSM's connection plugin, and its own boto3 requirement) are declared in
-# node-bootstrap/ansible/requirements.yml and requirements.txt in kube-compute
-# and installed by node-bootstrap's own local-exec command before it invokes
-# ansible-playbook — that keeps this image's release cycle decoupled from
-# which cloud connection plugins a given kube-compute version happens to need,
-# the same reason session-manager-plugin (a real transport binary, not a
-# pip/collection dependency) stays here rather than moving there.
+# at the local-exec step with a plain "command not found".
+# boto3 and the amazon.aws and ansible.windows collections are baked in too,
+# so a playbook that reaches AWS nodes over Session Manager (the aws_ssm
+# connection lives in amazon.aws, with session-manager-plugin above as its
+# transport) runs with no install step. The collections go to
+# /usr/share/ansible/collections, on ansible's default collections path. A
+# repo that sets collections_path or ANSIBLE_COLLECTIONS_PATH replaces that
+# default, so it must leave it unset or list this directory itself.
 
 RUN pip3 install --no-cache-dir --break-system-packages \
     "ansible-core==${ANSIBLE_CORE_VERSION}" \
-    && ansible-playbook --version
+    "ansible-lint==${ANSIBLE_LINT_VERSION}" \
+    "boto3==${BOTO3_VERSION}" \
+    && ansible-playbook --version \
+    && ansible-lint --version \
+    && python3 -c "import boto3, botocore"
+
+RUN ansible-galaxy collection install \
+    "amazon.aws:==${AMAZON_AWS_VERSION}" \
+    "ansible.windows:==${ANSIBLE_WINDOWS_VERSION}" \
+    -p /usr/share/ansible/collections \
+    && ansible-galaxy collection list
 
 # ── Operator verb-scripts ─────────────────────────────────────────────────────
 
@@ -281,7 +290,7 @@ COPY tasks.json /usr/share/kube-devenv/tasks.json
 # ── Version metadata ──────────────────────────────────────────────────────────
 # Renovate-pinned tool versions as OCI labels — a per-image, offline-readable
 # dependency matrix (`docker inspect` / `crane config`, no registry UI or repo
-# access needed). Excludes aws-cli/az-cli/session-manager-plugin: they track
+# access needed). Excludes aws-cli/session-manager-plugin: they track
 # upstream "latest" at build time rather than a pinned ARG, so there's nothing
 # static to label — see the release notes' version matrix for those instead.
 
@@ -300,7 +309,11 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
       io.kube-devenv.version.fzf="${FZF_VERSION}" \
-      io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}"
+      io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}" \
+      io.kube-devenv.version.ansible-lint="${ANSIBLE_LINT_VERSION}" \
+      io.kube-devenv.version.boto3="${BOTO3_VERSION}" \
+      io.kube-devenv.version.amazon-aws="${AMAZON_AWS_VERSION}" \
+      io.kube-devenv.version.ansible-windows="${ANSIBLE_WINDOWS_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
 ENV KUBE_DEVENV_VERSION=${KUBE_DEVENV_VERSION}

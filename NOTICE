@@ -7,7 +7,6 @@ This product bundles third-party tools. Each retains its own license:
 - kubectl            Apache-2.0
 - Helm               Apache-2.0
 - AWS CLI v2         Apache-2.0
-- Azure CLI          MIT
 - SOPS               Mozilla Public License 2.0
 - age                BSD-3-Clause
 - Gitleaks           MIT
