@@ -42,7 +42,7 @@ Verify all tools start:
 ```bash
 docker run --rm kube-devenv:local bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
-  helm version && aws --version && az --version &&
+  helm version && aws --version &&
   sops --version && age --version && gitleaks version &&
   trivy --version && cosign version && shfmt --version && yamlfmt --version &&
   fzf --version && session-manager-plugin --version

@@ -27,7 +27,6 @@ row "terragrunt" terragrunt --version
 row "kubectl" kubectl version --client
 row "helm" helm version
 row "aws" aws --version
-row "az" az --version
 row "sops" sops --version
 row "age" age --version
 row "gitleaks" gitleaks version

@@ -122,7 +122,7 @@ jobs:
       # Dependency version matrix: what's actually installed in this specific
       # tag, not just what the Dockerfile's ARGs intended. Runs the just-built
       # image itself rather than parsing the Dockerfile, so it's accurate for
-      # aws-cli/az-cli/session-manager-plugin too — those track upstream
+      # aws-cli/session-manager-plugin too — those track upstream
       # "latest" at build time rather than a Renovate-pinned ARG.
       - name: Generate dependency version matrix
         if: github.event_name != 'pull_request'

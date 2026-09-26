@@ -107,7 +107,6 @@ wrapper around a plain CLI command — see
 | `kubectl` | Kubernetes CLI (minor tracks `k8s_version` in kube-compute) |
 | `helm` | Helm package manager |
 | `aws` | AWS CLI v2 |
-| `az` | Azure CLI |
 | `sops` + `age` | Secret encryption (SOPS + age backend) |
 | `gitleaks` | Secret scanning (pre-commit + CI) |
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
@@ -149,7 +148,7 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
   `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
-  set including tools that aren't Renovate-pinned (`aws`, `az`,
+  set including tools that aren't Renovate-pinned (`aws`,
   `session-manager-plugin` track upstream "latest" at build time) is in each
   [GitHub Release](https://github.com/bbaliyan/kube-devenv/releases)' notes — built
   by actually running that release's image, not just reading the Dockerfile, so it's
@@ -201,7 +200,7 @@ docker buildx build --platform linux/amd64 --load -t kube-devenv:local .
 ```bash
 docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
-  helm version && aws --version && az --version &&
+  helm version && aws --version &&
   sops --version && age --version && gitleaks version &&
   trivy --version && cosign version && shfmt --version && yamlfmt --version &&
   fzf --version && session-manager-plugin --version &&

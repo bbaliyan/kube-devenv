@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, az, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws and ansible.windows collections, make)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws and ansible.windows collections, make)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -241,19 +241,6 @@ RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "aarch64") \
     && rm -rf /tmp/aws /tmp/awscli.zip \
     && aws --version
 
-# ── Azure CLI ────────────────────────────────────────────────────────────────
-# Installed via the Microsoft apt repo (supports arm64 and amd64).
-
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
-    && echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/microsoft.gpg] \
-       https://packages.microsoft.com/repos/azure-cli/ bookworm main" \
-    > /etc/apt/sources.list.d/azure-cli.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends azure-cli \
-    && rm -rf /var/lib/apt/lists/* \
-    && az --version
-
 # ── AWS Session Manager Plugin ────────────────────────────────────────────────
 # Not Renovate-managed — AWS does not publish versioned releases to GitHub.
 
@@ -303,7 +290,7 @@ COPY tasks.json /usr/share/kube-devenv/tasks.json
 # ── Version metadata ──────────────────────────────────────────────────────────
 # Renovate-pinned tool versions as OCI labels — a per-image, offline-readable
 # dependency matrix (`docker inspect` / `crane config`, no registry UI or repo
-# access needed). Excludes aws-cli/az-cli/session-manager-plugin: they track
+# access needed). Excludes aws-cli/session-manager-plugin: they track
 # upstream "latest" at build time rather than a pinned ARG, so there's nothing
 # static to label — see the release notes' version matrix for those instead.
 

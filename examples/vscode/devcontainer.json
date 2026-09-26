@@ -58,7 +58,6 @@
     // ~/.kube-compute/ via the mount + postCreateCommand hook above, not from
     // here — see the comments there for why.
     // AWS: forwarded automatically via the .aws mount above.
-    // Azure: set ARM_* vars or use 'az login' inside the container.
   },
 
   "remoteUser": "root",
