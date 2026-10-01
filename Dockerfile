@@ -27,7 +27,7 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.12.6
+ARG TOFU_VERSION=1.13.0
 
 # Held at 1.1.3 — see renovate.json. 1.1.4 fails to load AWS config whenever a
 # CA bundle is configured (AWS_CA_BUNDLE, or ca_bundle in the shared config),
