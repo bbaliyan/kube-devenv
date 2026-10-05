@@ -27,7 +27,7 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.13.0
+ARG TOFU_VERSION=1.13.1
 
 # Held at 1.1.3 — see renovate.json. 1.1.4 fails to load AWS config whenever a
 # CA bundle is configured (AWS_CA_BUNDLE, or ca_bundle in the shared config),
@@ -56,7 +56,7 @@ ARG SOPS_VERSION=3.13.3
 ARG AGE_VERSION=1.3.2
 
 # renovate: datasource=github-releases depName=openbao/openbao
-ARG OPENBAO_VERSION=2.7.0
+ARG OPENBAO_VERSION=2.7.1
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
