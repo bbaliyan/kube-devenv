@@ -41,3 +41,4 @@ row "ansible-lint" ansible-lint --version
 row "boto3" python3 -c 'import boto3; print(boto3.__version__)'
 row_grep "amazon.aws" "^amazon\.aws" ansible-galaxy collection list amazon.aws
 row_grep "ansible.windows" "^ansible\.windows" ansible-galaxy collection list ansible.windows
+row_grep "ansible.posix" "^ansible\.posix" ansible-galaxy collection list ansible.posix

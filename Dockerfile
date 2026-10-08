@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws and ansible.windows collections, make)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -92,6 +92,9 @@ ARG AMAZON_AWS_VERSION=11.4.0
 
 # renovate: datasource=galaxy-collection depName=ansible.windows
 ARG ANSIBLE_WINDOWS_VERSION=3.8.0
+
+# renovate: datasource=galaxy-collection depName=ansible.posix
+ARG ANSIBLE_POSIX_VERSION=2.2.2
 
 # ── Base OS packages ───────────────────────────────────────────────────────────
 # dnsutils: provides nsupdate, which kube-compute's dns-registration module
@@ -259,7 +262,8 @@ RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_
 # boto3 and the amazon.aws and ansible.windows collections are baked in too,
 # so a playbook that reaches AWS nodes over Session Manager (the aws_ssm
 # connection lives in amazon.aws, with session-manager-plugin above as its
-# transport) runs with no install step. The collections go to
+# transport) runs with no install step. ansible.posix adds the profile_tasks
+# and timer callbacks, which time each step of a run. The collections go to
 # /usr/share/ansible/collections, on ansible's default collections path. A
 # repo that sets collections_path or ANSIBLE_COLLECTIONS_PATH replaces that
 # default, so it must leave it unset or list this directory itself.
@@ -275,6 +279,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 RUN ansible-galaxy collection install \
     "amazon.aws:==${AMAZON_AWS_VERSION}" \
     "ansible.windows:==${ANSIBLE_WINDOWS_VERSION}" \
+    "ansible.posix:==${ANSIBLE_POSIX_VERSION}" \
     -p /usr/share/ansible/collections \
     && ansible-galaxy collection list
 
@@ -313,7 +318,8 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.ansible-lint="${ANSIBLE_LINT_VERSION}" \
       io.kube-devenv.version.boto3="${BOTO3_VERSION}" \
       io.kube-devenv.version.amazon-aws="${AMAZON_AWS_VERSION}" \
-      io.kube-devenv.version.ansible-windows="${ANSIBLE_WINDOWS_VERSION}"
+      io.kube-devenv.version.ansible-windows="${ANSIBLE_WINDOWS_VERSION}" \
+      io.kube-devenv.version.ansible-posix="${ANSIBLE_POSIX_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
 ENV KUBE_DEVENV_VERSION=${KUBE_DEVENV_VERSION}

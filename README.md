@@ -144,8 +144,8 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
   `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
-  `ansible-lint`, `boto3`, and the `amazon.aws` and `ansible.windows` collections) are baked
-  in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
+  `ansible-lint`, `boto3`, and the `amazon.aws`, `ansible.windows` and `ansible.posix`
+  collections) are baked in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
   `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
   set including tools that aren't Renovate-pinned (`aws`,
@@ -153,10 +153,11 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   [GitHub Release](https://github.com/bbaliyan/kube-devenv/releases)' notes — built
   by actually running that release's image, not just reading the Dockerfile, so it's
   accurate even for the unpinned tools. The image carries `ansible-core`, `ansible-lint`,
-  `boto3` (with its matching `botocore`) and the `amazon.aws` and `ansible.windows`
-  collections, so a playbook that reaches AWS nodes over Session Manager runs with no install
-  step. The collections are in `/usr/share/ansible/collections`, on Ansible's default
-  collections path: a repo that sets `collections_path` or `ANSIBLE_COLLECTIONS_PATH`
+  `boto3` (with its matching `botocore`) and the `amazon.aws`, `ansible.windows` and
+  `ansible.posix` collections, so a playbook that reaches AWS nodes over Session Manager runs
+  with no install step, and the `ansible.posix.profile_tasks` and `ansible.posix.timer`
+  callbacks can time each step of a run. The collections are in
+  `/usr/share/ansible/collections`, on Ansible's default collections path: a repo that sets `collections_path` or `ANSIBLE_COLLECTIONS_PATH`
   replaces that default and must leave it unset or list the directory. Any other
   collection or Python dependency is still playbook-specific and installed by the playbook's
   own repo, as kube-compute's `node-bootstrap` module does for its own.
