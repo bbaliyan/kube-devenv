@@ -88,7 +88,7 @@ ARG ANSIBLE_LINT_VERSION=26.9.0
 ARG BOTO3_VERSION=1.43.103
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
-ARG AMAZON_AWS_VERSION=11.4.0
+ARG AMAZON_AWS_VERSION=11.5.0
 
 # renovate: datasource=galaxy-collection depName=ansible.windows
 ARG ANSIBLE_WINDOWS_VERSION=3.8.0
