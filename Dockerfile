@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -73,6 +73,32 @@ ARG YAMLFMT_VERSION=0.21.0
 # renovate: datasource=github-releases depName=mvdan/sh
 ARG SHFMT_VERSION=3.14.1
 
+# renovate: datasource=github-releases depName=koalaman/shellcheck
+ARG SHELLCHECK_VERSION=0.11.0
+
+# renovate: datasource=github-releases depName=hadolint/hadolint
+ARG HADOLINT_VERSION=2.15.1
+
+# renovate: datasource=github-releases depName=yannh/kubeconform
+ARG KUBECONFORM_VERSION=0.8.0
+
+# promtool ships inside the Prometheus release tarball.
+# renovate: datasource=github-releases depName=prometheus/prometheus
+ARG PROMETHEUS_VERSION=3.15.0
+
+# renovate: datasource=github-releases depName=helm/chart-testing
+ARG CHART_TESTING_VERSION=3.15.0
+
+# renovate: datasource=github-releases depName=helm-unittest/helm-unittest
+ARG HELM_UNITTEST_VERSION=1.2.1
+
+# renovate: datasource=pypi depName=yamllint
+ARG YAMLLINT_VERSION=1.38.0
+
+# yamale is what `ct lint` validates Chart.yaml with.
+# renovate: datasource=pypi depName=yamale
+ARG YAMALE_VERSION=6.1.0
+
 # ansible-core 2.20+ requires Python >=3.12 -- was pinned to the 2.19 line
 # while the base image was debian:bookworm-slim (system python3 3.11). Now
 # unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
@@ -117,8 +143,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# pre-commit + pyyaml (via pipx so they don't pollute the system pip namespace)
-RUN pip3 install --no-cache-dir --break-system-packages pre-commit pyyaml
+# pre-commit + pyyaml. Debian owns the system `packaging` and pip cannot uninstall
+# it (no RECORD file), so pip installs its own copy beside it instead.
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed packaging pre-commit pyyaml
 
 # ── OpenTofu ──────────────────────────────────────────────────────────────────
 
@@ -234,6 +261,48 @@ RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION
     | tar -xz -C /usr/local/bin fzf \
     && fzf --version
 
+# ── Commit-tier linters ───────────────────────────────────────────────────────
+# The tools `make test-commit` calls in the spokes. Pinned here so a fix reaches
+# every spoke by bumping one image pin.
+
+RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "aarch64") \
+    && curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.${_arch}.tar.gz" \
+    | tar -xz --strip-components=1 -C /usr/local/bin "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" \
+    && shellcheck --version
+
+RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") \
+    && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-${_arch}" \
+       -o /usr/local/bin/hadolint \
+    && chmod +x /usr/local/bin/hadolint \
+    && hadolint --version
+
+RUN curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin kubeconform \
+    && kubeconform -v
+
+RUN curl -fsSL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${TARGETARCH}.tar.gz" \
+    | tar -xz --strip-components=1 -C /usr/local/bin "prometheus-${PROMETHEUS_VERSION}.linux-${TARGETARCH}/promtool" \
+    && promtool --version
+
+# ct reads its schema and lint config from /etc/ct.
+RUN mkdir -p /tmp/ct /etc/ct \
+    && curl -fsSL "https://github.com/helm/chart-testing/releases/download/v${CHART_TESTING_VERSION}/chart-testing_${CHART_TESTING_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /tmp/ct \
+    && mv /tmp/ct/ct /usr/local/bin/ct \
+    && mv /tmp/ct/etc/* /etc/ct/ \
+    && rm -rf /tmp/ct \
+    && ct version
+
+RUN pip3 install --no-cache-dir --break-system-packages \
+    "yamllint==${YAMLLINT_VERSION}" \
+    "yamale==${YAMALE_VERSION}" \
+    && yamllint --version
+
+# Plugins install per user by default; a system path lets any user find it.
+ENV HELM_PLUGINS=/usr/share/helm/plugins
+RUN helm plugin install https://github.com/helm-unittest/helm-unittest --version "v${HELM_UNITTEST_VERSION}" --verify=false \
+    && helm unittest --help >/dev/null
+
 # ── AWS CLI v2 ────────────────────────────────────────────────────────────────
 # AWS uses "x86_64" on amd64 and "aarch64" on arm64.
 
@@ -292,6 +361,14 @@ RUN chmod +x /usr/local/bin/kube-* /usr/local/bin/select-cluster 2>/dev/null || 
 
 COPY tasks.json /usr/share/kube-devenv/tasks.json
 
+# ── Shared check scripts ──────────────────────────────────────────────────────
+# Spokes call these from their Makefile at this fixed path. The smoke test fails
+# the build when any tool in tools.txt is missing or does not run.
+
+COPY checks/ /usr/share/kube-devenv/checks/
+RUN chmod +x /usr/share/kube-devenv/checks/*.sh \
+    && /usr/share/kube-devenv/checks/smoke.sh
+
 # ── Version metadata ──────────────────────────────────────────────────────────
 # Renovate-pinned tool versions as OCI labels — a per-image, offline-readable
 # dependency matrix (`docker inspect` / `crane config`, no registry UI or repo
@@ -314,6 +391,13 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
       io.kube-devenv.version.fzf="${FZF_VERSION}" \
+      io.kube-devenv.version.shellcheck="${SHELLCHECK_VERSION}" \
+      io.kube-devenv.version.hadolint="${HADOLINT_VERSION}" \
+      io.kube-devenv.version.kubeconform="${KUBECONFORM_VERSION}" \
+      io.kube-devenv.version.promtool="${PROMETHEUS_VERSION}" \
+      io.kube-devenv.version.chart-testing="${CHART_TESTING_VERSION}" \
+      io.kube-devenv.version.helm-unittest="${HELM_UNITTEST_VERSION}" \
+      io.kube-devenv.version.yamllint="${YAMLLINT_VERSION}" \
       io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}" \
       io.kube-devenv.version.ansible-lint="${ANSIBLE_LINT_VERSION}" \
       io.kube-devenv.version.boto3="${BOTO3_VERSION}" \

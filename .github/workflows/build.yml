@@ -7,11 +7,17 @@ on:
     paths:
       - Dockerfile
       - scripts/**
+      - checks/**
+      - tests/**
+      - Makefile
       - tasks.json
   pull_request:
     paths:
       - Dockerfile
       - scripts/**
+      - checks/**
+      - tests/**
+      - Makefile
       - tasks.json
   workflow_dispatch: {}
 
@@ -23,7 +29,32 @@ permissions:
   security-events: write # required for Trivy SARIF upload to Security tab
 
 jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build amd64 image for the check tests
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: kube-devenv:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Dogfood: the repo's own lint and the check-script tests run inside the
+      # image they ship in.
+      - name: Lint and test inside the image
+        run: |
+          docker run --rm -v "$PWD":/workspace kube-devenv:local             bash -c 'git config --global --add safe.directory /workspace && make test-commit && tests/checks.sh'
+
   build:
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

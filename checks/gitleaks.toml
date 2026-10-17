@@ -1,0 +1,22 @@
+title = "kube-devenv shared rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "aws-account-id-in-arn"
+description = "12-digit AWS account ID inside an ARN"
+regex = '''arn:aws[a-z-]*:[a-z0-9-]+:[a-z0-9-]*:\d{12}:'''
+keywords = ["arn:aws"]
+
+[[rules]]
+id = "aws-account-id-assignment"
+description = "12-digit AWS account ID assigned to an account variable"
+regex = '''(?i)(aws[_-]?)?account[_-]?id["']?\s*[:=]\s*["']?\d{12}\b'''
+keywords = ["account"]
+
+[[rules]]
+id = "internal-url"
+description = "URL on an internal-only domain suffix"
+regex = '''(?i)https?://[a-z0-9.-]+\.(internal|corp|lan|intranet|home\.arpa)\b'''
+keywords = ["http"]

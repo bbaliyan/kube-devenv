@@ -1,0 +1,30 @@
+tofu|tofu version
+terragrunt|terragrunt --version
+packer|packer version
+clusterctl|clusterctl version
+kubectl|kubectl version --client
+helm|helm version
+helm-unittest|helm unittest --help
+sops|sops --version
+age|age --version
+openbao|bao version
+gitleaks|gitleaks version
+trivy|trivy --version
+cosign|cosign version
+yamlfmt|yamlfmt --version
+shfmt|shfmt --version
+fzf|fzf --version
+shellcheck|shellcheck --version
+hadolint|hadolint --version
+kubeconform|kubeconform -v
+yamllint|yamllint --version
+promtool|promtool --version
+ct|ct version
+aws|aws --version
+session-manager-plugin|session-manager-plugin --version
+ansible-playbook|ansible-playbook --version
+ansible-lint|ansible-lint --version
+pre-commit|pre-commit --version
+nsupdate|nsupdate -V
+jq|jq --version
+make|make --version

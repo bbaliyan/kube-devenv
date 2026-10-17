@@ -1,0 +1,3 @@
+ignored:
+  - DL3008 # apt packages follow the Debian release, not per-package pins
+  - DL3013 # pre-commit and pyyaml float on purpose; the linters and ansible are pinned by ARG

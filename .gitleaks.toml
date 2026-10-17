@@ -1,0 +1,6 @@
+[extend]
+path = "checks/gitleaks.toml"
+
+[[allowlists]]
+description = "The check tests plant fake account IDs and internal URLs on purpose."
+paths = ['''tests/checks\.sh''']

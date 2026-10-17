@@ -112,11 +112,31 @@ wrapper around a plain CLI command — see
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
 | `cosign` | Image signing + SBOM verification |
 | `yamlfmt` `shfmt` | Formatting linters |
+| `shellcheck` `hadolint` `yamllint` | Shell, Dockerfile and YAML linters |
+| `kubeconform` `promtool` | Kubernetes manifest schema check, Prometheus rule check |
+| `ct` `helm unittest` | Helm chart lint and unit tests |
 | `pre-commit` `python3` `pyyaml` | Pre-commit framework + YAML parsing |
 | `kube-*` verb-scripts | Provider-agnostic cluster operations — see [scripts/README.md](scripts/README.md) |
 
 All versions are pinned in the `Dockerfile` via Renovate-managed `ARG` annotations and
 update automatically via PR.
+
+### Shared check scripts
+
+The image carries the scripts that a repo's `make test-commit` calls, at a fixed path:
+`/usr/share/kube-devenv/checks/`. A repo's Makefile wires them to its own paths. A fix
+reaches every repo when it bumps the image pin.
+
+| Script | What it does |
+|---|---|
+| `secrets.sh [dir]` | Runs gitleaks with the default rules plus `gitleaks.toml`: AWS account IDs and internal URL shapes. A repo with its own `.gitleaks.toml` should `[extend]` the shared file to add its allowlist. |
+| `commit-messages.sh <base-ref>` | Fails on a missing `Signed-off-by` (set `REQUIRE_SIGNOFF=0` to turn that off) and on `Co-Authored-By` or `Generated with` lines. Skips when there is no base commit. |
+| `helm-kubeconform.sh [dir]` | Runs `helm lint` and `helm template` for every chart, then validates the output with kubeconform and a CRD schema catalog. Set `MANIFEST_DIRS` to check plain manifest folders too. |
+| `pipeline-lint.sh [dir]` | Fails when a GitHub workflow or GitLab file runs a check itself. Pipeline files may only call `make`. List exceptions in `.pipelinelintignore`. |
+| `smoke.sh` | Runs the version command of every tool in `tools.txt`. The image build runs it, so a missing tool fails the build. |
+
+`make test-commit` runs the repo's own lint. `make test-integration` builds the image and
+runs `tests/checks.sh` inside it.
 
 ## Supply chain: what's in a given image, and is it safe
 
@@ -207,6 +227,12 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   fzf --version && session-manager-plugin --version &&
   ansible-playbook --version
 "
+```
+
+Or run the smoke test, which checks every tool at once:
+
+```bash
+docker run --rm ghcr.io/bbaliyan/kube-devenv:latest /usr/share/kube-devenv/checks/smoke.sh
 ```
 
 ## Version compatibility

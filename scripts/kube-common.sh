@@ -111,6 +111,7 @@ terragrunt_outputs() {
     echo "    select-cluster ${rel}/control-plane" >&2
     exit 1
   fi
+  # shellcheck disable=SC2034 # read by the verb-scripts that source this file
   TF_OUTPUTS=$(terragrunt output -json) || {
     echo "Error: 'terragrunt output' failed (see output above) — common causes:" >&2
     echo "  wrong directory, expired provider credentials (AWS/Azure/Proxmox)," >&2

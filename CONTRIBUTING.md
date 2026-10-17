@@ -40,6 +40,19 @@ docker buildx build --platform linux/arm64 -t kube-devenv:local .
 Verify all tools start:
 
 ```bash
+docker run --rm kube-devenv:local /usr/share/kube-devenv/checks/smoke.sh
+```
+
+Run the lint and the check-script tests:
+
+```bash
+make test-commit
+make test-integration
+```
+
+The older manual check, still valid:
+
+```bash
 docker run --rm kube-devenv:local bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
   helm version && aws --version &&
