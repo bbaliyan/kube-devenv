@@ -12,7 +12,7 @@ keywords = ["arn:aws"]
 [[rules]]
 id = "aws-account-id-assignment"
 description = "12-digit AWS account ID assigned to an account variable"
-regex = '''(?i)(aws[_-]?)?account[_-]?id["']?\s*[:=]\s*["']?\d{12}\b'''
+regex = '''(?i)account(?:[_-]?id)?["']?\s*[:=]\s*["']?\d{12}\b'''
 keywords = ["account"]
 
 [[rules]]

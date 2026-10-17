@@ -22,13 +22,9 @@ while IFS= read -r chart_file; do
   fi
   helm lint "$chart" || status=1
 
-  value_sets=("")
-  for values in "$chart"/ci/*values.yaml; do
-    [ -f "$values" ] && value_sets+=("--values $values")
-  done
-  for set in "${value_sets[@]}"; do
-    # shellcheck disable=SC2086
-    helm template "$chart" $set | kubeconform "${schema_args[@]}" || status=1
+  for values in "" "$chart"/ci/*values.yaml; do
+    [ -z "$values" ] || [ -f "$values" ] || continue
+    helm template "$chart" ${values:+--values "$values"} | kubeconform "${schema_args[@]}" || status=1
   done
 done < <(find . -name Chart.yaml -not -path '*/charts/*/charts/*' -not -path './.git/*' | sort)
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run the version command of every tool in the image and fail if any is
 # missing or broken. The tool list is tools.txt, one "name|command" per line.
+# No `set -e`: check every tool so the failure lists them all.
 set -uo pipefail
 
 tools_file="${TOOLS_FILE:-$(dirname "$0")/tools.txt}"

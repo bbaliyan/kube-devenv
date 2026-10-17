@@ -135,6 +135,16 @@ reaches every repo when it bumps the image pin.
 | `pipeline-lint.sh [dir]` | Fails when a GitHub workflow or GitLab file runs a check itself. Pipeline files may only call `make`. List exceptions in `.pipelinelintignore`. |
 | `smoke.sh` | Runs the version command of every tool in `tools.txt`. The image build runs it, so a missing tool fails the build. |
 
+A repo's own `.gitleaks.toml` extends the shared file and adds its allowlist:
+
+```toml
+[extend]
+path = "/usr/share/kube-devenv/checks/gitleaks.toml"
+
+[[allowlists]]
+paths = ['''docs/example\.md''']
+```
+
 `make test-commit` runs the repo's own lint. `make test-integration` builds the image and
 runs `tests/checks.sh` inside it.
 

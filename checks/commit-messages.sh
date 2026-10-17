@@ -11,6 +11,11 @@ if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then
   exit 0
 fi
 
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+  echo "commit-messages: base '$base' is not a commit here. Fetch full history (fetch-depth 0)."
+  exit 1
+fi
+
 status=0
 for sha in $(git rev-list --no-merges "$base..HEAD"); do
   message="$(git log -1 --format=%B "$sha")"

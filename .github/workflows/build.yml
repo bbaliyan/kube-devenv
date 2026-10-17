@@ -51,7 +51,8 @@ jobs:
       # image they ship in.
       - name: Lint and test inside the image
         run: |
-          docker run --rm -v "$PWD":/workspace kube-devenv:local             bash -c 'git config --global --add safe.directory /workspace && make test-commit && tests/checks.sh'
+          docker run --rm -v "$PWD":/workspace kube-devenv:local \
+            bash -c 'git config --global --add safe.directory /workspace && make test-commit test-checks'
 
   build:
     needs: checks

@@ -2,6 +2,7 @@
 # Behaviour tests for the shared check scripts in checks/.
 # Run inside the built image (all tools present) or on a host with bash and git:
 # cases that need a missing tool are skipped and reported.
+# No `set -e`: every case runs and failures are counted at the end.
 set -uo pipefail
 
 CHECKS_DIR="$(cd "${CHECKS_DIR:-$(dirname "$0")/../checks}" && pwd)"
@@ -101,6 +102,7 @@ expect "commit-messages: missing sign-off passes when not required" 0 bash -c "c
 
 expect_output "commit-messages: empty base skips with a message" "skip" bash -c "cd '$repo' && '$cm' ''"
 expect "commit-messages: all-zero base skips" 0 bash -c "cd '$repo' && '$cm' 0000000000000000000000000000000000000000"
+expect "commit-messages: a base that is not a commit fails" 1 bash -c "cd '$repo' && '$cm' deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
 # ── pipeline-lint.sh ──────────────────────────────────────────────────────────
 pl="$CHECKS_DIR/pipeline-lint.sh"
@@ -183,6 +185,11 @@ if command -v gitleaks >/dev/null; then
   echo 'role = "arn:aws:iam::123456789012:role/deploy"' >"$repo/main.tf"
   git -C "$repo" add . && git -C "$repo" commit -q -m "init"
   expect "secrets: AWS account ID in an ARN fails" 1 "$se" "$repo"
+
+  repo="$(new_repo se-json)"
+  echo '{"Account": "123456789012"}' >"$repo/policy.json"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "init"
+  expect "secrets: account ID in a JSON field fails" 1 "$se" "$repo"
 
   repo="$(new_repo se-url)"
   echo 'endpoint = "https://git.corp.internal/api"' >"$repo/main.tf"
