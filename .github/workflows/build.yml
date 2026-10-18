@@ -12,15 +12,7 @@ on:
       - Makefile
       - .trivyignore
       - tasks.json
-  pull_request:
-    paths:
-      - Dockerfile
-      - scripts/**
-      - checks/**
-      - tests/**
-      - Makefile
-      - .trivyignore
-      - tasks.json
+  pull_request: {}   # no path filter: the ruleset requires these jobs on every PR
   workflow_dispatch: {}
 
 permissions:
