@@ -47,7 +47,7 @@ ARG CLUSTERCTL_VERSION=1.14.3
 ARG KUBECTL_VERSION=1.37.1
 
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=4.3.0
+ARG HELM_VERSION=4.3.1
 
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION=3.13.3
@@ -65,7 +65,7 @@ ARG GH_VERSION=2.102.0
 ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
-ARG TRIVY_VERSION=0.75.0
+ARG TRIVY_VERSION=0.76.0
 
 # renovate: datasource=github-releases depName=sigstore/cosign
 ARG COSIGN_VERSION=3.1.3
