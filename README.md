@@ -108,6 +108,8 @@ wrapper around a plain CLI command — see
 | `helm` | Helm package manager |
 | `aws` | AWS CLI v2 |
 | `sops` + `age` | Secret encryption (SOPS + age backend) |
+| `gh` | GitHub CLI |
+| `packer` `ansible-playbook` `nsupdate` | Image bake, node configuration, dynamic DNS updates |
 | `gitleaks` | Secret scanning (pre-commit + CI) |
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
 | `cosign` | Image signing + SBOM verification |
