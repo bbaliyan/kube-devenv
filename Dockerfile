@@ -41,7 +41,7 @@ ARG TERRAGRUNT_VERSION=1.1.6
 ARG PACKER_VERSION=1.16.1
 
 # renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
-ARG CLUSTERCTL_VERSION=1.14.2
+ARG CLUSTERCTL_VERSION=1.14.3
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.37.1
@@ -104,14 +104,14 @@ ARG YAMALE_VERSION=6.1.0
 # unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
 # against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.21.4
+ARG ANSIBLE_CORE_VERSION=2.21.5
 
 # renovate: datasource=pypi depName=ansible-lint
 ARG ANSIBLE_LINT_VERSION=26.9.0
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.43.103
+ARG BOTO3_VERSION=1.43.114
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.0
@@ -255,7 +255,7 @@ RUN curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/
 # ── fzf ───────────────────────────────────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=junegunn/fzf
-ARG FZF_VERSION=0.74.4
+ARG FZF_VERSION=0.74.5
 
 RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${TARGETARCH}.tar.gz" \
     | tar -xz -C /usr/local/bin fzf \
