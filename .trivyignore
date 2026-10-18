@@ -1,0 +1,3 @@
+# Trivy ignore entries for the scheduled image scan.
+# Each entry must carry an expiry date: no silent forever-suppressions.
+# Format: CVE-YYYY-NNNN exp:YYYY-MM-DD reason:<one line>

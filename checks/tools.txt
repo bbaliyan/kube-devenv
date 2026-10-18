@@ -8,6 +8,7 @@ helm-unittest|helm unittest --help
 sops|sops --version
 age|age --version
 openbao|bao version
+gh|gh --version
 gitleaks|gitleaks version
 trivy|trivy --version
 cosign|cosign version

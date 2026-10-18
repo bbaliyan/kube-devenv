@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, gh, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -57,6 +57,9 @@ ARG AGE_VERSION=1.3.2
 
 # renovate: datasource=github-releases depName=openbao/openbao
 ARG OPENBAO_VERSION=2.7.1
+
+# renovate: datasource=github-releases depName=cli/cli
+ARG GH_VERSION=2.102.0
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
@@ -215,6 +218,12 @@ RUN curl -fsSL "https://github.com/FiloSottile/age/releases/download/v${AGE_VERS
 RUN curl -fsSL "https://github.com/openbao/openbao/releases/download/v${OPENBAO_VERSION}/openbao_${OPENBAO_VERSION}_linux_${TARGETARCH}.tar.gz" \
     | tar -xz -C /usr/local/bin bao \
     && bao version
+
+# ── GitHub CLI ────────────────────────────────────────────────────────────────
+
+RUN curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz --strip-components=2 -C /usr/local/bin "gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh" \
+    && gh --version
 
 # ── Gitleaks ──────────────────────────────────────────────────────────────────
 # Gitleaks uses "x64" on amd64 and "arm64" on arm64.
@@ -385,6 +394,7 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.sops="${SOPS_VERSION}" \
       io.kube-devenv.version.age="${AGE_VERSION}" \
       io.kube-devenv.version.openbao="${OPENBAO_VERSION}" \
+      io.kube-devenv.version.gh="${GH_VERSION}" \
       io.kube-devenv.version.gitleaks="${GITLEAKS_VERSION}" \
       io.kube-devenv.version.trivy="${TRIVY_VERSION}" \
       io.kube-devenv.version.cosign="${COSIGN_VERSION}" \

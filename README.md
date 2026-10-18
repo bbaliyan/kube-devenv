@@ -108,6 +108,8 @@ wrapper around a plain CLI command — see
 | `helm` | Helm package manager |
 | `aws` | AWS CLI v2 |
 | `sops` + `age` | Secret encryption (SOPS + age backend) |
+| `gh` | GitHub CLI |
+| `packer` `ansible-playbook` `nsupdate` | Image bake, node configuration, dynamic DNS updates |
 | `gitleaks` | Secret scanning (pre-commit + CI) |
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
 | `cosign` | Image signing + SBOM verification |
@@ -171,6 +173,11 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   [Security tab](https://github.com/bbaliyan/kube-devenv/security/code-scanning).
   The scan doesn't block a release — check the Security tab before deploying if that
   matters for your use case.
+- **A weekly scan of the published image.** `.github/workflows/scan.yml` scans
+  `:latest` every Monday. Findings open one issue labelled `image-vulnerabilities`.
+  Later scans update that issue, and a clean scan closes it. To accept a finding for
+  a while, add it to `.trivyignore` with an `exp:YYYY-MM-DD` date. `make test-commit`
+  fails when an entry has no date or the date has passed.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
   `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
