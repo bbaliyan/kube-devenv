@@ -10,6 +10,7 @@ on:
       - checks/**
       - tests/**
       - Makefile
+      - .trivyignore
       - tasks.json
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - checks/**
       - tests/**
       - Makefile
+      - .trivyignore
       - tasks.json
   workflow_dispatch: {}
 
@@ -112,7 +114,7 @@ jobs:
         run: |
           trivy image \
             --format sarif --output trivy.sarif \
-            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 0 \
+            --severity CRITICAL,HIGH --ignore-unfixed --ignorefile .trivyignore --exit-code 0 \
             ghcr.io/${{ github.repository_owner }}/kube-devenv@${{ steps.build.outputs.digest }}
 
       - name: Upload Trivy SARIF to GitHub Security tab

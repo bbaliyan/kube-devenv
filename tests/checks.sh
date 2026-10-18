@@ -250,6 +250,77 @@ else
   skip "helm-kubeconform: rendering" "helm and kubeconform"
 fi
 
+# ── check-trivyignore.sh ──────────────────────────────────────────────────────
+ti="$CHECKS_DIR/check-trivyignore.sh"
+
+printf '%s\n' '# comment' '' 'CVE-2026-0001 exp:2099-01-01 reason:waiting on upstream' >"$work/ignore-good"
+expect "check-trivyignore: a dated entry passes" 0 "$ti" "$work/ignore-good"
+
+printf '%s\n' '# only a comment' >"$work/ignore-empty"
+expect "check-trivyignore: a file with no entries passes" 0 "$ti" "$work/ignore-empty"
+
+printf '%s\n' 'CVE-2026-0002 reason:no date' >"$work/ignore-nodate"
+expect_output "check-trivyignore: an entry without a date fails and names it" "CVE-2026-0002" "$ti" "$work/ignore-nodate"
+expect "check-trivyignore: an entry without a date fails" 1 "$ti" "$work/ignore-nodate"
+
+printf '%s\n' 'CVE-2026-0003 exp:2020-01-01 reason:old' >"$work/ignore-expired"
+expect "check-trivyignore: an expired entry fails" 1 "$ti" "$work/ignore-expired"
+expect "check-trivyignore: the same entry passes before its date" 0 env TODAY=2019-12-31 "$ti" "$work/ignore-expired"
+
+# ── scan-image.sh ─────────────────────────────────────────────────────────────
+si="$(cd "$CHECKS_DIR/../.github/scripts" && pwd)/scan-image.sh"
+if command -v jq >/dev/null; then
+  stubs="$work/stubs"
+  mkdir -p "$stubs"
+  cat >"$stubs/trivy" <<'STUB'
+#!/usr/bin/env bash
+while [ "$#" -gt 0 ]; do
+  [ "$1" = "--output" ] && out="$2"
+  shift
+done
+cp "$FAKE_REPORT" "$out"
+STUB
+  cat >"$stubs/gh" <<'STUB'
+#!/usr/bin/env bash
+echo "gh $*" >>"$GH_LOG"
+for arg in "$@"; do
+  [ -n "${prev:-}" ] && [ "$prev" = "--body-file" ] && cat "$arg" >>"$GH_LOG"
+  prev="$arg"
+done
+if [ "$1 $2" = "issue list" ]; then
+  echo "$FAKE_OPEN_ISSUE"
+fi
+STUB
+  chmod +x "$stubs/trivy" "$stubs/gh"
+
+  echo '{"Results":[]}' >"$work/report-clean.json"
+  cat >"$work/report-found.json" <<'JSON'
+{"Results":[{"Vulnerabilities":[
+ {"VulnerabilityID":"CVE-2026-1111","PkgName":"libfoo","InstalledVersion":"1.0","FixedVersion":"1.1","Severity":"HIGH"},
+ {"VulnerabilityID":"CVE-2026-1111","PkgName":"libfoo","InstalledVersion":"1.0","FixedVersion":"1.1","Severity":"HIGH"}]}]}
+JSON
+
+  scan() { # <report> <open-issue> -> prints the gh log
+    : >"$work/gh.log"
+    PATH="$stubs:$PATH" GH_LOG="$work/gh.log" FAKE_REPORT="$1" FAKE_OPEN_ISSUE="$2" \
+      TRIVY_IGNORE_FILE="$work/ignore-empty" "$si" example.invalid/img:latest >/dev/null 2>&1
+    cat "$work/gh.log"
+  }
+
+  expect_output "scan-image: findings with no open issue create one" "gh issue create" scan "$work/report-found.json" ""
+  expect_output "scan-image: findings with an open issue update it" "gh issue edit 7" scan "$work/report-found.json" 7
+  expect_output "scan-image: a repeated finding is listed once" "found 1 fixable" scan "$work/report-found.json" ""
+  expect_output "scan-image: a clean scan closes the open issue" "gh issue close 7" scan "$work/report-clean.json" 7
+  out="$(scan "$work/report-clean.json" "")"
+  if grep -qE "issue (create|edit|close)" <<<"$out"; then
+    bad "scan-image: a clean scan with no open issue does nothing"
+  else
+    ok "scan-image: a clean scan with no open issue does nothing"
+  fi
+else
+  skip "scan-image: issue handling" jq
+fi
+
 echo
 echo "passed $pass, failed $fail, skipped $skipped"
 [ "$fail" -eq 0 ]
