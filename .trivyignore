@@ -1,3 +1,50 @@
 # Trivy ignore entries for the scheduled image scan.
 # Each entry must carry an expiry date: no silent forever-suppressions.
 # Format: CVE-YYYY-NNNN exp:YYYY-MM-DD reason:<one line>
+
+# Go stdlib and library findings inside prebuilt upstream tools (gitleaks, yamlfmt, cosign,
+# sops and others). The tools are not ours to rebuild; upstream has not released fixes yet.
+# They run in CI and dev shells on trusted input. Review when the entries expire.
+CVE-2025-47913 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2025-61726 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2025-68121 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-25679 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-27145 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-32280 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-32281 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-32283 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-33811 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-33814 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-33818 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39820 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39821 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39822 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39828 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39829 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39830 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39831 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39832 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39835 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-39836 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-42499 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-42504 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-42508 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-46595 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-46597 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-46600 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56851 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56852 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56853 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56854 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56858 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56859 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56860 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56862 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56864 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-56865 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-78667 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-78669 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-84304 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-84445 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+CVE-2026-97031 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
+GHSA-hrxh-6v49-42gf exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
