@@ -173,7 +173,7 @@ RUN curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_$
     && packer version
 
 # ── clusterctl ────────────────────────────────────────────────────────────────
-# kube-image's Proxmox bake (packer/proxmox/build.sh) shells out to clusterctl
+# kube-images' Proxmox bake (kube-node/packer/proxmox/build.sh) shells out to clusterctl
 # to render CAPI core + CAPMOX install manifests at build time.
 
 RUN curl -fsSL "https://github.com/kubernetes-sigs/cluster-api/releases/download/v${CLUSTERCTL_VERSION}/clusterctl-linux-${TARGETARCH}" \
