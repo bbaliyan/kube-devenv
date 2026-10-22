@@ -120,7 +120,7 @@ ARG BOTO3_VERSION=1.43.114
 ARG AMAZON_AWS_VERSION=11.5.0
 
 # renovate: datasource=galaxy-collection depName=ansible.windows
-ARG ANSIBLE_WINDOWS_VERSION=3.8.0
+ARG ANSIBLE_WINDOWS_VERSION=3.9.1
 
 # renovate: datasource=galaxy-collection depName=ansible.posix
 ARG ANSIBLE_POSIX_VERSION=2.2.2
