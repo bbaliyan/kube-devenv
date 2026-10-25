@@ -2,6 +2,8 @@
 # Fail when a commit between <base-ref> and HEAD carries an AI-attribution
 # trailer or lacks a Signed-off-by line (set REQUIRE_SIGNOFF=0 for repos
 # without a DCO). Skips when there is no real base commit.
+# GitHub adds a Co-authored-by trailer for the App that opened a squash-merged
+# PR, such as Renovate. That trailer names a GitHub App, so it is not flagged.
 set -euo pipefail
 
 base="${1:-}"
@@ -16,6 +18,8 @@ if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
   exit 1
 fi
 
+github_app_trailer='^Co-authored-by: [^<]*\[bot\] <[0-9]+\+[^>]*\[bot\]@users\.noreply\.github\.com>$'
+
 status=0
 for sha in $(git rev-list --no-merges "$base..HEAD"); do
   message="$(git log -1 --format=%B "$sha")"
@@ -24,7 +28,8 @@ for sha in $(git rev-list --no-merges "$base..HEAD"); do
     echo "$short: missing Signed-off-by"
     status=1
   fi
-  if grep -qiE '^(Co-Authored-By:|.*Generated with)' <<<"$message"; then
+  attribution="$(grep -iE '^Co-Authored-By:' <<<"$message" | grep -viE "$github_app_trailer" || true)"
+  if [ -n "$attribution" ] || grep -qi 'Generated with' <<<"$message"; then
     echo "$short: AI-attribution line in the commit message"
     status=1
   fi

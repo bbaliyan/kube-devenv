@@ -87,6 +87,43 @@ base="$(git -C "$repo" rev-parse HEAD)"
 commit_file "$repo" b "$(printf 'feat: add b\n\nSigned-off-by: Test <test@example.com>\nCo-Authored-By: Someone <x@example.com>')"
 expect "commit-messages: Co-Authored-By trailer fails" 1 bash -c "cd '$repo' && '$cm' '$base'"
 
+repo="$(new_repo cm-bot)"
+commit_file "$repo" a "base"
+base="$(git -C "$repo" rev-parse HEAD)"
+commit_file "$repo" b "$(printf 'chore(deps): update x (#1)
+
+Signed-off-by: Test <test@example.com>
+Co-authored-by: bbaliyan-renovate[bot] <340402501+bbaliyan-renovate[bot]@users.noreply.github.com>')"
+expect "commit-messages: Co-authored-by a GitHub App passes" 0 bash -c "cd '$repo' && '$cm' '$base'"
+
+repo="$(new_repo cm-ai)"
+commit_file "$repo" a "base"
+base="$(git -C "$repo" rev-parse HEAD)"
+commit_file "$repo" b "$(printf 'feat: add b
+
+Signed-off-by: Test <test@example.com>
+Co-Authored-By: Claude <noreply@anthropic.com>')"
+expect "commit-messages: Co-Authored-By an AI assistant fails" 1 bash -c "cd '$repo' && '$cm' '$base'"
+
+repo="$(new_repo cm-botmix)"
+commit_file "$repo" a "base"
+base="$(git -C "$repo" rev-parse HEAD)"
+commit_file "$repo" b "$(printf 'chore(deps): update x (#1)
+
+Signed-off-by: Test <test@example.com>
+Co-authored-by: bbaliyan-renovate[bot] <340402501+bbaliyan-renovate[bot]@users.noreply.github.com>
+Co-Authored-By: Claude <noreply@anthropic.com>')"
+expect "commit-messages: an AI trailer next to a GitHub App trailer fails" 1 bash -c "cd '$repo' && '$cm' '$base'"
+
+repo="$(new_repo cm-botname)"
+commit_file "$repo" a "base"
+base="$(git -C "$repo" rev-parse HEAD)"
+commit_file "$repo" b "$(printf 'feat: add b
+
+Signed-off-by: Test <test@example.com>
+Co-authored-by: Claude [bot] <noreply@anthropic.com>')"
+expect "commit-messages: a bot name with a non-GitHub address fails" 1 bash -c "cd '$repo' && '$cm' '$base'"
+
 repo="$(new_repo cm-gen)"
 commit_file "$repo" a "base"
 base="$(git -C "$repo" rev-parse HEAD)"
