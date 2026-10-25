@@ -27,7 +27,7 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.13.1
+ARG TOFU_VERSION=1.13.2
 
 # Held at 1.1.3 — see renovate.json. 1.1.4 fails to load AWS config whenever a
 # CA bundle is configured (AWS_CA_BUNDLE, or ca_bundle in the shared config),
@@ -65,7 +65,7 @@ ARG GH_VERSION=2.102.1
 ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
-ARG TRIVY_VERSION=0.76.0
+ARG TRIVY_VERSION=0.76.1
 
 # renovate: datasource=github-releases depName=sigstore/cosign
 ARG COSIGN_VERSION=3.1.4
@@ -87,7 +87,7 @@ ARG KUBECONFORM_VERSION=0.8.0
 
 # promtool ships inside the Prometheus release tarball.
 # renovate: datasource=github-releases depName=prometheus/prometheus
-ARG PROMETHEUS_VERSION=3.15.0
+ARG PROMETHEUS_VERSION=3.15.1
 
 # renovate: datasource=github-releases depName=helm/chart-testing
 ARG CHART_TESTING_VERSION=3.15.0
