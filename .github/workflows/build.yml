@@ -11,7 +11,7 @@ on:
       - tests/**
       - Makefile
       - .trivyignore
-      - tasks.json
+      - tasks/**
   pull_request: {}   # no path filter: the ruleset requires these jobs on every PR
   workflow_dispatch: {}
 
