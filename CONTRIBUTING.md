@@ -50,6 +50,19 @@ make test-commit
 make test-integration
 ```
 
+`make test-integration` runs three kinds of test inside the image:
+
+- `tests/checks.sh`: the shared check scripts in `checks/`.
+- `tests/verbs.sh`: the `kube-*` verb-scripts, with stub tools.
+- `tests/tools.sh`: one real, offline job for each tool that a repo of ours relies on
+  (for example `kube-tf` through real Terragrunt and OpenTofu, or a `sops` and `age`
+  round trip). A tool bump that changes that behaviour fails the PR that makes it.
+
+When you add a tool to the image, add it to `checks/tools.txt` so the smoke test
+verifies that it starts. If a repo relies on a particular job of the tool, add a case
+for that job to `tests/tools.sh`. Do not add a case for a tool that needs a network or
+a credential (`aws`, `az`, `gh`, `trivy`, `cosign`). Those stay at the smoke test.
+
 The older manual check, still valid:
 
 ```bash
