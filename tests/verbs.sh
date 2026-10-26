@@ -271,7 +271,7 @@ done
 
 run "$ws" "" "" kube-tasks-merge
 labels="$(jq -r '.tasks[].label' "$ws/.vscode/tasks.json")"
-for want in "Select Folder" "Plan" "Start Node" "Shell" "Stop Node" "Kubeconfig" "Secrets" "Tail" "Status" "Patch OS"; do
+for want in "Select Folder" "Plan" "Start Node" "Shell" "Stop Node" "Kubeconfig" "Secrets" "Tail" "Status"; do
   grep -q "$want" <<<"$labels" && ok "no argument gives $want" || bad "no argument gives $want"
 done
 

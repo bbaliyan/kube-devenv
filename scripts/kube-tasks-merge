@@ -8,7 +8,7 @@
 #
 # Sets (one file each in the image): core (Select Folder, Cloud Login, Init, Plan,
 # Apply, Destroy), machines (Start, Stop, Shell), cluster (Kubeconfig, Secrets,
-# Tail, Status, Patch OS). A client names the sets it wants in the
+# Tail, Status). A client names the sets it wants in the
 # postStartCommand of its devcontainer.json.
 #
 # Output: .vscode/tasks.json
