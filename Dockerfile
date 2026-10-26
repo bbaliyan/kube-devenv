@@ -35,7 +35,7 @@ ARG TOFU_VERSION=1.13.2
 # *http.Client". Every terragrunt command dies before reaching tofu, so any
 # consumer behind a TLS-inspecting proxy cannot run at all.
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=1.1.6
+ARG TERRAGRUNT_VERSION=1.2.0
 
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.2
