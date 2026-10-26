@@ -177,7 +177,7 @@ check "the interactive picker saves the chosen folder" 0 "Selected: aws/plain"
 # ---- kube-run and the saved selection ---------------------------------------
 
 ws=$(new_ws sel)
-unit "$ws" live/aws/eu/dev
+unit "$ws" live/aws/dev
 run "$ws" "" "" kube-run kube-tf plan
 check "kube-run without a selection says to run Select Folder" nonzero "Select Folder"
 
@@ -187,7 +187,7 @@ check "kube-run with a stale selection says to run Select Folder" nonzero "no lo
 
 # ---- kube-cloud-login: the provider is the folder below live/ ------------------
 
-run "$ws" "" "" select-folder live/aws/eu/dev
+run "$ws" "" "" select-folder live/aws/dev
 run "$ws" "" "" kube-cloud-login
 check "login in live/aws runs aws sso login" 0 "" '^aws sso login$'
 
@@ -198,27 +198,27 @@ check "login outside live/ fails and names the rule" nonzero "not under live/" "
 
 # ---- verb kinds ------------------------------------------------------------
 
-win='{"node_provider":{"value":"aws"},"aws_region":{"value":"eu-west-1"},"extra_node_refs":{"value":{"win-dev":{"instance_id":"i-win","ip":"10.0.0.9","provider":"aws"}}}}'
-cluster='{"node_provider":{"value":"aws"},"aws_region":{"value":"eu-west-1"},"node_control_ref":{"value":"i-cp"},"cluster_ip":{"value":"10.0.0.1"},"control_plane_node_refs":{"value":{"cp-0":{"instance_id":"i-cp","ip":"10.0.0.1","provider":"aws"}}}}'
+machine='{"node_provider":{"value":"aws"},"aws_region":{"value":"test-region-1"},"extra_node_refs":{"value":{"dev-vm":{"instance_id":"i-machine","ip":"10.0.0.9","provider":"aws"}}}}'
+cluster='{"node_provider":{"value":"aws"},"aws_region":{"value":"test-region-1"},"node_control_ref":{"value":"i-cp"},"cluster_ip":{"value":"10.0.0.1"},"control_plane_node_refs":{"value":{"cp-0":{"instance_id":"i-cp","ip":"10.0.0.1","provider":"aws"}}}}'
 
 ws=$(new_ws kinds)
-unit "$ws" live/aws/eu/win "$win"
-unit "$ws" live/aws/eu/cluster "$cluster"
+unit "$ws" live/aws/env/machine "$machine"
+unit "$ws" live/aws/env/cluster "$cluster"
 
 select_in() { # <unit dir> — save the selection
   mkdir -p "$ws/.vscode"
   echo "$ws/$1" >"$ws/.vscode/.selected-folder"
 }
 
-select_in live/aws/eu/win
+select_in live/aws/env/machine
 run "$ws" "" "" kube-run kube-start
-check "Start works on a unit that lists only a Windows machine" 0 "" '^aws ec2 start-instances --instance-ids i-win '
+check "Start works on a unit that lists only a standalone machine" 0 "" '^aws ec2 start-instances --instance-ids i-machine '
 
 run "$ws" "" "" kube-run kube-kubeconfig
-check "Kubeconfig refuses a unit with no control plane in one line" nonzero "^Error: 'aws/eu/win' is not a cluster: it has no control-plane node\.$" "" '^aws'
+check "Kubeconfig refuses a unit with no control plane in one line" nonzero "^Error: 'aws/env/machine' is not a cluster: it has no control-plane node\.$" "" '^aws'
 
 run "$ws" "" "" kube-run kube-status
-check "Status refuses a unit with no Kubernetes nodes in one line" nonzero "^Error: 'aws/eu/win' is not a cluster: it lists no Kubernetes nodes\.$"
+check "Status refuses a unit with no Kubernetes nodes in one line" nonzero "^Error: 'aws/env/machine' is not a cluster: it lists no Kubernetes nodes\.$"
 
 run "$ws" "" "" kube-run kube-secrets
 check "Secrets refuses a unit with no control plane" nonzero "is not a cluster"
@@ -236,24 +236,24 @@ check "a unit with empty outputs lists no machines" nonzero "lists no machines"
 
 # ---- one unit at a time in a folder of units ------------------------------
 
-win2='{"node_provider":{"value":"aws"},"aws_region":{"value":"us-east-1"},"extra_node_refs":{"value":{"win-two":{"instance_id":"i-two","ip":"10.0.1.9","provider":"aws"}}}}'
+machine2='{"node_provider":{"value":"aws"},"aws_region":{"value":"test-region-2"},"extra_node_refs":{"value":{"dev-vm-2":{"instance_id":"i-two","ip":"10.0.1.9","provider":"aws"}}}}'
 ws=$(new_ws many)
-unit "$ws" live/aws/env/eu "$win"
-unit "$ws" live/aws/env/us "$win2"
+unit "$ws" live/aws/env/one "$machine"
+unit "$ws" live/aws/env/two "$machine2"
 select_in() { mkdir -p "$ws/.vscode" && echo "$ws/$1" >"$ws/.vscode/.selected-folder"; }
 select_in live/aws/env
 
-FZF_PICK="us" run "$ws" "" "" kube-run kube-start
+FZF_PICK="two" run "$ws" "" "" kube-run kube-start
 check "a folder of units gets a unit picker, and the verb acts on the chosen unit" 0 "" '^aws ec2 start-instances --instance-ids i-two '
-! grep -q 'i-win' "$LOG" && ok "the other unit is left alone" || bad "the other unit is left alone"
+! grep -q 'i-machine' "$LOG" && ok "the other unit is left alone" || bad "the other unit is left alone"
 [[ "$(grep -c 'terragrunt output -json' "$LOG")" -eq 1 ]] && ok "the verb reads one unit's outputs once" || bad "the verb reads one unit's outputs once"
 
 FZF_PICK="all" run "$ws" "" "" kube-run kube-start
-check "Start offers all units and starts every machine in them" 0 "" '^aws ec2 start-instances --instance-ids i-win '
+check "Start offers all units and starts every machine in them" 0 "" '^aws ec2 start-instances --instance-ids i-machine '
 grep -q 'i-two' "$LOG" && ok "all units includes the second unit" || bad "all units includes the second unit"
 
-FZF_PICK="eu" run "$ws" "" "" kube-run kube-kubeconfig
-check "a wrong-kind unit chosen from the picker is refused after one read" nonzero "^Error: 'aws/env/eu' is not a cluster" "" '^aws'
+FZF_PICK="one" run "$ws" "" "" kube-run kube-kubeconfig
+check "a wrong-kind unit chosen from the picker is refused after one read" nonzero "^Error: 'aws/env/one' is not a cluster" "" '^aws'
 
 # ---- kube-tasks-merge: sets ---------------------------------------------------
 

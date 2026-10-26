@@ -64,7 +64,7 @@ kind, it stops with one line and does nothing else:
 | Tail, Status | list Kubernetes nodes (the same, without `extra_node_refs`) | `is not a cluster: it lists no Kubernetes nodes` |
 | Kubeconfig, Secrets | name a control-plane node (`node_control_ref`) | `is not a cluster: it has no control-plane node` |
 
-A Windows or Linux machine that sits next to a cluster, in an `extra_node_refs` output
+A standalone machine that sits next to a cluster, in an `extra_node_refs` output
 of the form `{ "<name>" = { instance_id = "...", ip = "...", provider = "aws" } }`, is a
 machine and not a cluster. Start, Stop and Shell accept it. Tail and Status leave it out,
 because they read RKE2 on the node.

@@ -1,16 +1,16 @@
-# A stack file: Terragrunt generates one unit for each block below, in two "regions".
-unit "use1" {
+# A stack file: Terragrunt generates one unit for each block below.
+unit "one" {
   source = "${get_repo_root()}/units/demo"
-  path   = "use1"
+  path   = "one"
   values = {
-    region = "us-east-1"
+    region = "test-region-1"
   }
 }
 
-unit "euw1" {
+unit "two" {
   source = "${get_repo_root()}/units/demo"
-  path   = "euw1"
+  path   = "two"
   values = {
-    region = "eu-west-1"
+    region = "test-region-2"
   }
 }

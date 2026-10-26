@@ -5,7 +5,7 @@
 # the node — see live/proxmox/README.md).
 # Run from the selected folder (kube-run does this). With several units it asks
 # which one. Prompts to pick a node when the unit has more than one. Works on
-# any unit that lists machines, a Windows or Linux machine included.
+# any unit that lists machines, a standalone VM included.
 set -euo pipefail
 source kube-common.sh
 
