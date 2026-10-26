@@ -39,7 +39,6 @@ folder and run the verb yourself.
 | `kube-tail` | Live-tail a node's bootstrap log. Apply returns before the node joins, so this is how to watch it. |
 | `kube-kubeconfig` | Write the kubeconfig to `~/.kube/<cluster>.yaml`, or `~/.kube/<cluster>-<region>.yaml` where the provider has a region. `<cluster>` is the module's `cluster_name` output. |
 | `kube-secrets` | Print in-cluster secrets, such as the Argo CD admin password. Run it after `kube-kubeconfig`. |
-| `kube-os-patch` | Patch the OS on every node of a Proxmox cluster through `ops/upgrade-os.sh` in kube-examples. That script finds the unit from the folder name, so the folder name is the cluster. Asks you to type it. |
 | `kube-proxmox-login` | Refresh the 8-hour Proxmox API token over SSH. `kube-cloud-login` calls it. |
 | `kube-tasks-merge` | Write `.vscode/tasks.json` from the named task sets and the repo's `tasks-custom.json`. See "Task sets". |
 
@@ -81,7 +80,7 @@ The image ships three task sets, one file each in `/usr/share/kube-devenv/tasks/
 |---|---|
 | `core` | Select Folder, Cloud Login, Init, Plan, Apply, Destroy |
 | `machines` | Start Node, Stop Node, Shell |
-| `cluster` | Tail, Status, Kubeconfig, Secrets, Patch OS |
+| `cluster` | Tail, Status, Kubeconfig, Secrets |
 
 `kube-tasks-merge --sets core,machines` merges only the named sets. With no `--sets` it
 merges all three. A repo names its sets in the `postStartCommand` of its

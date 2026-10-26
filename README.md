@@ -101,7 +101,6 @@ Typical order of use, top to bottom:
 | cluster | **Status** | Report the RKE2 join status of a node. |
 | cluster | **Kubeconfig** | Write the cluster's kubeconfig to `~/.kube/<cluster>.yaml` (`-<region>` is added where the provider has a region, so same-named clusters in different regions do not collide). `<cluster>` is the name the cluster module reports. |
 | cluster | **Secrets** | Print in-cluster secrets, for example the Argo CD admin password. Run it after Kubeconfig. |
-| cluster | **Patch OS** | Patch the OS on every node (Proxmox only). |
 
 A task that needs a machine or a cluster reads one unit's outputs. If the unit is the wrong
 kind, the task stops with one line, for example `'aws/env/machine' is not a cluster: it has no

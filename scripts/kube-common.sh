@@ -323,8 +323,7 @@ proxmox_control_plane_dir() {
 
 # proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
 # (not the PVE host). Source of truth is the control-plane unit's own applied
-# state (terragrunt output -raw ansible_ssh_user / ansible_ssh_private_key_file
-# — the same two outputs kube-compute's node-os-patch module itself consumes)
+# state (terragrunt output -raw ansible_ssh_user / ansible_ssh_private_key_file)
 # so these can't drift from what Terraform actually applied. PROXMOX_VM_SSH_KEY/
 # PROXMOX_VM_SSH_USER remain an explicit override (e.g. connecting with a
 # personal key rather than Ansible's). Falls back further to the
