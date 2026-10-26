@@ -59,7 +59,7 @@ ARG AGE_VERSION=1.3.2
 ARG OPENBAO_VERSION=2.7.1
 
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION=2.102.1
+ARG GH_VERSION=2.103.0
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
