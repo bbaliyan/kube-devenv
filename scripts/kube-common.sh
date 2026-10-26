@@ -198,7 +198,7 @@ require_control_plane() {
 #     key, unlike the old split control-plane/ + node-pools/<pool>/ layout).
 #   - static_nodes.<group>.node_refs (aws-cluster's fixed worker groups)
 #   - extra_node_refs (machines the caller adds next to the cluster that aren't
-#     Kubernetes nodes, such as a Windows dev machine; left out when the
+#     Kubernetes nodes, such as a dev VM; left out when the
 #     second argument is "k8s", for verbs that talk to RKE2 on the node)
 # Missing any of these contributes nothing (empty map), so this is safe
 # whether the unit is control-plane-only, node-pool-only, or the merged
