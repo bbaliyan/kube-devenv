@@ -93,23 +93,23 @@ check() {
 # ---- kube-tf: the tool follows the files -------------------------------------
 
 ws=$(new_ws tf)
-unit "$ws" live/proxmox/single
-unit "$ws" live/proxmox/ci/control-plane
-unit "$ws" live/proxmox/ci/general
-mkdir -p "$ws/live/proxmox/stacky" && : >"$ws/live/proxmox/stacky/terragrunt.stack.hcl"
+unit "$ws" live/cloud/single
+unit "$ws" live/cloud/site/alpha
+unit "$ws" live/cloud/site/beta
+mkdir -p "$ws/live/cloud/stacky" && : >"$ws/live/cloud/stacky/terragrunt.stack.hcl"
 mkdir -p "$ws/live/aws/plain" && : >"$ws/live/aws/plain/main.tf"
 mkdir -p "$ws/live/aws/empty"
 
-run "$ws" live/proxmox/single "" kube-tf plan
+run "$ws" live/cloud/single "" kube-tf plan
 check "kube-tf plan in a unit runs terragrunt plan" 0 "" '^terragrunt plan$'
 
-run "$ws" live/proxmox/single "" kube-tf init
+run "$ws" live/cloud/single "" kube-tf init
 check "kube-tf init in a unit bootstraps the backend" 0 "" '^terragrunt init --backend-bootstrap$'
 
-run "$ws" live/proxmox/stacky "" kube-tf plan
+run "$ws" live/cloud/stacky "" kube-tf plan
 check "kube-tf plan in a folder with a stack file runs stack run" 0 "" '^terragrunt stack run plan --backend-bootstrap --non-interactive$'
 
-run "$ws" live/proxmox/ci "" kube-tf plan
+run "$ws" live/cloud/site "" kube-tf plan
 check "kube-tf plan in a folder of units runs run --all" 0 "" '^terragrunt run --all -- plan$'
 
 run "$ws" live/aws/plain "" kube-tf plan
@@ -118,42 +118,42 @@ check "kube-tf plan in a plain OpenTofu root runs tofu" 0 "" '^tofu plan$' '^ter
 run "$ws" live/aws/empty "" kube-tf plan
 check "kube-tf in an empty folder fails with a clear error and runs nothing" nonzero "has no terragrunt.hcl" "" '.'
 
-run "$ws" live/proxmox/single "" kube-tf frobnicate
+run "$ws" live/cloud/single "" kube-tf frobnicate
 check "kube-tf refuses an unknown verb" nonzero "Usage: kube-tf"
 
 # ---- kube-tf: apply and destroy ask for the path below live/ ---------------
 
-run "$ws" live/proxmox/ci "wrong" kube-tf apply
+run "$ws" live/cloud/site "wrong" kube-tf apply
 check "a wrong confirmation word aborts before any tool runs" nonzero "Confirmation did not match" "" '^terragrunt'
 
-run "$ws" live/proxmox/ci "proxmox/ci" kube-tf apply
+run "$ws" live/cloud/site "cloud/site" kube-tf apply
 check "apply over several units lists them with a count, then runs run --all" 0 "ALL 2 units" '^terragrunt run --all --non-interactive --backend-bootstrap -- apply -auto-approve$'
-grep -q 'control-plane' <<<"$OUT" && grep -q 'general' <<<"$OUT" && ok "the unit list names each unit" || bad "the unit list names each unit"
+grep -q 'alpha' <<<"$OUT" && grep -q 'beta' <<<"$OUT" && ok "the unit list names each unit" || bad "the unit list names each unit"
 
-run "$ws" live/proxmox/stacky "proxmox/stacky" kube-tf destroy
+run "$ws" live/cloud/stacky "cloud/stacky" kube-tf destroy
 check "destroy of a stack file names the folder and shows no count" 0 "ALL units of the stack file" '^terragrunt stack run destroy --backend-bootstrap --non-interactive$'
 ! grep -qE 'ALL [0-9]+ units' <<<"$OUT" && ok "a stack file shows no unit count" || bad "a stack file shows no unit count"
 
 run "$ws" live/aws/plain "aws/plain" kube-tf apply
 check "apply in a plain OpenTofu root runs tofu apply -auto-approve" 0 "" '^tofu apply -auto-approve$'
 
-run "$ws" live/proxmox/single "proxmox/single" kube-tf apply
+run "$ws" live/cloud/single "cloud/single" kube-tf apply
 check "apply in a unit runs terragrunt apply -auto-approve" 0 "" '^terragrunt apply --backend-bootstrap -auto-approve$'
 
 # ---- select-folder ------------------------------------------------------------
 
 ws=$(new_ws pick)
-unit "$ws" live/proxmox/ci/control-plane
-unit "$ws" live/proxmox/ci/general
-unit "$ws" live/proxmox/lone
-mkdir -p "$ws/live/proxmox/stacky/.terragrunt-stack/gen" && : >"$ws/live/proxmox/stacky/terragrunt.stack.hcl" && : >"$ws/live/proxmox/stacky/.terragrunt-stack/gen/terragrunt.hcl"
+unit "$ws" live/cloud/site/alpha
+unit "$ws" live/cloud/site/beta
+unit "$ws" live/cloud/lone
+mkdir -p "$ws/live/cloud/stacky/.terragrunt-stack/gen" && : >"$ws/live/cloud/stacky/terragrunt.stack.hcl" && : >"$ws/live/cloud/stacky/.terragrunt-stack/gen/terragrunt.hcl"
 mkdir -p "$ws/live/aws/plain" && : >"$ws/live/aws/plain/main.tf"
-mkdir -p "$ws/live/proxmox/lone/.terragrunt-cache/x" && : >"$ws/live/proxmox/lone/.terragrunt-cache/x/terragrunt.hcl"
+mkdir -p "$ws/live/cloud/lone/.terragrunt-cache/x" && : >"$ws/live/cloud/lone/.terragrunt-cache/x/terragrunt.hcl"
 mkdir -p "$ws/modules/m" && : >"$ws/modules/m/main.tf"
 
 run "$ws" "" "" select-folder --list
 check "the picker lists a folder of units and a unit inside it, with no clusters/ folder" 0 "" ""
-for want in live/proxmox/ci live/proxmox/ci/control-plane live/proxmox/lone live/proxmox/stacky live/aws/plain live/proxmox; do
+for want in live/cloud/site live/cloud/site/alpha live/cloud/lone live/cloud/stacky live/aws/plain live/cloud; do
   grep -qx "$want" <<<"$OUT" && ok "the picker lists $want" || bad "the picker lists $want"
 done
 for absent in terragrunt-stack terragrunt-cache modules; do
@@ -161,16 +161,16 @@ for absent in terragrunt-stack terragrunt-cache modules; do
 done
 [[ ! -s "$LOG" ]] && ok "the picker never calls terragrunt" || bad "the picker never calls terragrunt"
 
-run "$ws" "" "" select-folder live/proxmox/ci
-check "select-folder takes a path and prints its label" 0 "Selected: proxmox/ci" ""
-[[ "$(cat "$ws/.vscode/.selected-folder")" == "$ws/live/proxmox/ci" ]] && ok "the selection is saved to .selected-folder" || bad "the selection is saved to .selected-folder"
-grep -q 'proxmox/ci' "$ws/.vscode/settings.json" && ok "the window title names the folder" || bad "the window title names the folder"
+run "$ws" "" "" select-folder live/cloud/site
+check "select-folder takes a path and prints its label" 0 "Selected: cloud/site" ""
+[[ "$(cat "$ws/.vscode/.selected-folder")" == "$ws/live/cloud/site" ]] && ok "the selection is saved to .selected-folder" || bad "the selection is saved to .selected-folder"
+grep -q 'cloud/site' "$ws/.vscode/settings.json" && ok "the window title names the folder" || bad "the window title names the folder"
 
 mkdir -p "$ws/live/empty"
 run "$ws" "" "" select-folder live/empty
 check "select-folder refuses a folder with nothing to apply" nonzero "has no terragrunt.hcl"
 
-run "$ws" "" "" select-folder live/proxmox/lone
+run "$ws" "" "" select-folder live/cloud/lone
 FZF_PICK="live/aws/plain" run "$ws" "" "" select-folder
 check "the interactive picker saves the chosen folder" 0 "Selected: aws/plain"
 
