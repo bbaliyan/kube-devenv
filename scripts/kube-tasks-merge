@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# kube-tasks-merge — merge the image's base tasks.json with consumer custom task files.
+# kube-tasks-merge — merge the image's task sets with consumer custom task files.
 #
 # Usage (from workspace root):
-#   kube-tasks-merge                           # base + .devcontainer/tasks-custom.json
-#   kube-tasks-merge file1.json [file2.json]   # base + specified files in order
+#   kube-tasks-merge                                  # all sets + .devcontainer/tasks-custom.json
+#   kube-tasks-merge --sets core,machines             # only the named sets
+#   kube-tasks-merge [--sets a,b] file1.json [file2.json]   # sets + specified files in order
+#
+# Sets (one file each in the image): core (Select Folder, Cloud Login, Init, Plan,
+# Apply, Destroy), machines (Start, Stop, Shell), cluster (Kubeconfig, Secrets,
+# Tail, Status, Patch OS). A client names the sets it wants in the
+# postStartCommand of its devcontainer.json.
 #
 # Output: .vscode/tasks.json
 #
@@ -15,8 +21,24 @@
 # and so is everything if the repo has no live/ directory to read.
 set -euo pipefail
 
-BASE="/usr/share/kube-devenv/tasks.json"
+TASKS_DIR="${KUBE_DEVENV_TASKS_DIR:-/usr/share/kube-devenv/tasks}"
 OUTPUT=".vscode/tasks.json"
+SETS="core,machines,cluster"
+
+if [[ "${1:-}" == "--sets" ]]; then
+  SETS="${2:?--sets needs a comma-separated list, for example core,machines}"
+  shift 2
+fi
+
+BASE_FILES=()
+IFS=',' read -r -a SET_NAMES <<<"${SETS}"
+for name in "${SET_NAMES[@]}"; do
+  if [[ ! -f "${TASKS_DIR}/${name}.json" ]]; then
+    echo "kube-tasks-merge: unknown set '${name}'. Sets: core, machines, cluster." >&2
+    exit 1
+  fi
+  BASE_FILES+=("${TASKS_DIR}/${name}.json")
+done
 
 mkdir -p .vscode
 
@@ -26,7 +48,7 @@ else
   CUSTOM_FILES=("$@")
 fi
 
-INPUT_FILES=("${BASE}")
+INPUT_FILES=("${BASE_FILES[@]}")
 for f in "${CUSTOM_FILES[@]}"; do
   [[ -f "$f" ]] && INPUT_FILES+=("$f")
 done
@@ -37,7 +59,7 @@ done
 AVAILABLE_PROVIDERS="[]"
 if [[ -d "live" ]]; then
   AVAILABLE_PROVIDERS=$(
-    for d in live/*/; do [[ -d "${d}" ]] && basename "${d}"; done \
+    for d in live/*/; do [[ -d "${d}" ]] || continue; basename "${d}"; done \
       | jq -Rsc 'split("\n") | map(select(. != ""))'
   )
 fi
@@ -66,9 +88,9 @@ jq -s --argjson available "${AVAILABLE_PROVIDERS}" '
   | if .inputs == [] then del(.inputs) else . end
 ' "${INPUT_FILES[@]}" > "${OUTPUT}"
 
-BASE_COUNT=$(jq '.tasks|length' "${BASE}")
+BASE_COUNT=$(jq -s '[.[].tasks] | add | length' "${BASE_FILES[@]}")
 TOTAL_COUNT=$(jq '.tasks|length' "${OUTPUT}")
-CUSTOM_COUNT=$(( ${#INPUT_FILES[@]} - 1 ))
+CUSTOM_COUNT=$(( ${#INPUT_FILES[@]} - ${#BASE_FILES[@]} ))
 if [[ ${CUSTOM_COUNT} -eq 0 ]]; then
   echo "kube-tasks-merge: ${BASE_COUNT} standard → ${TOTAL_COUNT} tasks → ${OUTPUT}"
 else

@@ -1,91 +1,111 @@
 # kube-devenv verb-scripts
 
-Installed to `/usr/local/bin/` by the kube-devenv image. These are the plain CLI
-commands behind every [VS Code Task](../README.md#vs-code-tasks) — use them directly
-from a terminal when you don't want to click a button (CI, scripting, headless work,
-or just a faster habit).
+The kube-devenv image installs these commands to `/usr/local/bin/`. Each VS Code task
+([README](../README.md#vs-code-tasks)) calls one of them. You can also run them in a
+terminal, in a script or in a pipeline.
 
-Most of these operate on **the selected cluster** and must be run from that cluster's
-directory (`live/<provider>/clusters/<name>/`). `select-cluster` and `kube-run` are how
-the VS Code Tasks get there automatically; from a terminal you can either `cd` there
-yourself or use `kube-run <verb>` the same way the tasks do.
+## The selected folder
+
+The verbs act on **the selected folder**: any folder under `live/`. The kind of folder
+comes from the files in it:
+
+| Files in the folder | Kind | `kube-tf` runs |
+|---|---|---|
+| `terragrunt.hcl` | unit | `terragrunt <verb>` |
+| `terragrunt.stack.hcl` | stack file | `terragrunt stack run <verb>` |
+| units in folders below, and no `terragrunt.hcl` | folder of units | `terragrunt run --all -- <verb>` |
+| only `*.tf` files | plain OpenTofu root | `tofu <verb>` |
+| anything else | nothing to apply | an error, and nothing runs |
+
+The words "unit" and "stack" mean what they mean in Terragrunt. A stack run writes a
+`.terragrunt-stack/` folder into the folder. Add it to `.gitignore`.
+
+`select-folder` saves the choice in `.vscode/.selected-folder`. `kube-run <verb>` goes to
+the selected folder and runs the verb there. From a terminal you can also `cd` to the
+folder and run the verb yourself.
+
+## The verbs
 
 | Script | Purpose |
 |---|---|
-| `select-cluster` | Pick and persist the active cluster directory. Lists both single-node clusters and, for a multi-node cluster, its root (applied as a whole) *and* its individual units. |
-| `kube-run` | `cd` to the selected cluster directory and run a `kube-*` verb — what every VS Code Task actually calls. |
-| `kube-cloud-login` | Authenticate against the selected cluster's provider (`aws sso login` / `az login` / Proxmox token refresh). Provider is inferred from the cluster's `live/<provider>/...` path, not from Terraform state, so this works before the first `init`. |
-| `kube-init` | `terragrunt init` (multi-node root: `terragrunt run --all init`). |
-| `kube-plan` | `terragrunt plan` (multi-node root: `terragrunt run --all plan`). |
-| `kube-apply` | `terragrunt apply` (requires typing the cluster name; multi-node root: `terragrunt run --all apply` — cluster-facts first, then control-plane and node-pool concurrently). |
-| `kube-start` | Start stopped nodes (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster. Prompts to pick one node, or all of them, when there's more than one. |
-| `kube-stop` | Stop nodes (EC2 stop / Azure VM deallocate / Proxmox VM shutdown) rather than waiting for a schedule. Prompts to pick one node, or all of them; stopping all of an AWS cluster also scales its autoscaled groups to zero. |
-| `kube-status` | Report RKE2 join status for a node — `not-started` / `in-progress` / `failed` / `complete`, derived live from the node's own `rke2-server`/`rke2-agent` systemd unit and (for a server node) its own `kubectl get node` entry (SSM / Azure run-command, no inbound port; SSH for Proxmox). No status file involved. Prompts to pick a node — status is per-node, not shared cluster-wide. |
-| `kube-os-patch` | Patch the OS on every node of the cluster (`ops/upgrade-os.sh` in kube-examples, which applies kube-compute's `node-os-patch` module): `dnf update -y`, reboot only when actually needed. Control-plane nodes one at a time, then workers. Requires typing the cluster name. Proxmox only — drives nodes over SSH, no AWS/Azure equivalent yet. |
-| `kube-tail` | Live-tail a node's bootstrap log (`/var/log/kube-compute-bootstrap.log` on the node, over SSM / SSH; a one-shot snapshot on Azure). Apply returns as soon as the boot payload is attached, before the node joins, so this is how to watch it. Prompts to pick a node when there's more than one. |
-| `kube-kubeconfig` | Fetch kubeconfig and write it to `~/.kube/<cluster>.yaml` (`~/.kube/<cluster>-<region>.yaml` for providers with a region concept, so same-named clusters in different regions don't overwrite each other). `<cluster>` is the module's `cluster_name` output, falling back to the folder name. Always targets the genesis node. |
-| `kube-secrets` | Print in-cluster secrets (e.g. the ArgoCD admin password). |
-| `kube-shell` | Break-glass shell (SSM session / Azure run-command / SSH for Proxmox), no inbound port required. Prompts to pick a node when there's more than one. |
-| `kube-destroy` | `terragrunt destroy` (requires typing the cluster name; multi-node root: `terragrunt run --all destroy` — control-plane and node-pool concurrently, then cluster-facts last). |
-| `kube-proxmox-login` | Refresh the 8h Proxmox API token over SSH. Proxmox-only; called internally by `kube-cloud-login`, or run directly. |
-| `kube-tasks-merge` | Merge the base `tasks.json` with a consumer repo's `tasks-custom.json`. Drops any task carrying a `providers` array unless the repo has a matching `live/<provider>/` directory, so a repo never shows a button its provider can't run; the key is stripped from the output. A repo with no `live/` keeps everything. |
+| `select-folder` | Pick and save the selected folder. It lists every folder under `live/` that has a unit, a stack file or a `.tf` file, and every folder that holds units. It reads files only. You can type a path. `--list` prints the choices, `--current` prints the saved folder. |
+| `kube-run` | Go to the selected folder and run a `kube-*` verb. Every VS Code task calls it. |
+| `kube-cloud-login` | Log in to the provider: `aws sso login`, `az login` or the Proxmox token refresh. The provider is the folder right below `live/` (`live/<provider>/...`), so this works before the first init. A folder outside `live/` is an error. |
+| `kube-tf` | `init`, `plan`, `apply` or `destroy` on the folder, with the tool that fits it (table above). `apply` and `destroy` print what they will touch, list the units of a folder of units with their count, and ask you to type the folder's path below `live/`. A stack file shows no count, because Terragrunt generates its units later. |
+| `kube-start` | Start stopped machines. Works on any unit that lists machines. |
+| `kube-stop` | Stop machines. Stopping all nodes of an AWS cluster also scales its autoscaled groups to zero. |
+| `kube-shell` | Break-glass shell on a machine (SSM session, Azure run-command or SSH for Proxmox). |
+| `kube-status` | Report the RKE2 join status of a node: `not-started`, `in-progress`, `failed` or `complete`. It asks the node itself, so no status file is involved. |
+| `kube-tail` | Live-tail a node's bootstrap log. Apply returns before the node joins, so this is how to watch it. |
+| `kube-kubeconfig` | Write the kubeconfig to `~/.kube/<cluster>.yaml`, or `~/.kube/<cluster>-<region>.yaml` where the provider has a region. `<cluster>` is the module's `cluster_name` output. |
+| `kube-secrets` | Print in-cluster secrets, such as the Argo CD admin password. Run it after `kube-kubeconfig`. |
+| `kube-os-patch` | Patch the OS on every node of a Proxmox cluster through `ops/upgrade-os.sh` in kube-examples. That script finds the unit from the folder name, so the folder name is the cluster. Asks you to type it. |
+| `kube-proxmox-login` | Refresh the 8-hour Proxmox API token over SSH. `kube-cloud-login` calls it. |
+| `kube-tasks-merge` | Write `.vscode/tasks.json` from the named task sets and the repo's `tasks-custom.json`. See "Task sets". |
 
-## How provider dispatch works
+## Which unit a verb acts on
 
-`kube-init`/`kube-plan`/`kube-apply`/`kube-destroy` never branch on provider — they
-just call plain `terragrunt <verb>`, and Terragrunt resolves the right provider module
-from the `terragrunt.hcl` in the current directory.
+Start, Stop, Shell, Tail, Status, Kubeconfig and Secrets act on **one unit**.
 
-`kube-status`/`kube-shell`/`kube-tail`/`kube-kubeconfig`/`kube-start`/`kube-stop` do call provider-specific
-APIs, so they read `node_provider` from `terragrunt output -json` (the cluster's own
-applied state) and branch on it — correct by construction, since a cluster under
-`live/aws/...` can only ever produce `node_provider = "aws"`.
+- If the selected folder is a unit, the verb acts on it.
+- If the folder holds several units, or is a stack file, the verb shows a picker of the unit
+  paths below the folder. The picker reads files only. With one unit there is no prompt.
+- Start and Stop also offer **all**. They then act on every unit, one after the other. A unit
+  that fails or is refused is reported, and the others still run.
+- The choice is not saved. To act often on one unit, select that folder with `select-folder`.
+- A stack file has units only after Terragrunt generated them. Run `kube-tf init` first.
 
-`kube-cloud-login` is the exception: it needs to work *before* `terragrunt init` has
-ever run, when there's no state to read `node_provider` from. It infers the provider
-from the cluster's directory path instead (`live/<provider>/clusters/<name>/...`).
+After you choose a unit, the verb reads that unit's outputs once. If the unit is the wrong
+kind, it stops with one line and does nothing else:
 
-## Multi-node clusters: one root, several units
+| Verb | The unit must | The refusal says |
+|---|---|---|
+| Start, Stop, Shell | list machines (`control_plane_node_refs`, `worker_node_refs`, `node_pools`, `static_nodes` or `extra_node_refs`) | `lists no machines` |
+| Tail, Status | list Kubernetes nodes (the same, without `extra_node_refs`) | `is not a cluster: it lists no Kubernetes nodes` |
+| Kubeconfig, Secrets | name a control-plane node (`node_control_ref`) | `is not a cluster: it has no control-plane node` |
 
-A single-node cluster is one Terragrunt unit — a directory with its own
-`terragrunt.hcl`. A multi-node cluster (e.g. `live/proxmox/clusters/cluster-2`)
-is instead a *root* directory with no `terragrunt.hcl` of its own, holding
-several units — `control-plane/` and `node-pools/<pool>/` — wired by a
-`dependency` block so Terragrunt knows their order.
+A Windows or Linux machine that sits next to a cluster, in an `extra_node_refs` output
+of the form `{ "<name>" = { instance_id = "...", ip = "...", provider = "aws" } }`, is a
+machine and not a cluster. Start, Stop and Shell accept it. Tail and Status leave it out,
+because they read RKE2 on the node.
 
-`select-cluster` offers both the root and each unit. Which you pick depends on
-the verb:
+Tail and Status accept a worker unit, because they read RKE2 on any Kubernetes node.
+Kubeconfig and Secrets need the control-plane unit. Autoscaled nodes (AWS Auto Scaling
+groups, Azure VMSS) are not listed: Terraform has no per-instance list for them.
 
-- **Lifecycle verbs** (`kube-init`/`kube-plan`/`kube-apply`/`kube-destroy`) work
-  on the whole cluster — select the **root** and they use `terragrunt run --all`,
-  which walks the dependency DAG (control plane up first on apply, down last on
-  destroy). Run against a single unit, they act on just that unit.
-- **Per-node / read verbs** (`kube-kubeconfig`/`kube-status`/`kube-shell`/
-  `kube-start`) act on one unit's nodes, so select a **unit** — usually
-  `control-plane` (that's where the kubeconfig/API live). Run against the root,
-  they exit with a message telling you which unit to select.
+## Task sets
 
-## Picking a node on a multi-node cluster
+The image ships three task sets, one file each in `/usr/share/kube-devenv/tasks/`:
 
-A cluster can have more than one control-plane node, Proxmox node pools, and AWS
-static node groups. `kube-shell`, `kube-tail`, `kube-status`, `kube-start` and
-`kube-stop` read every node Terraform tracks — `control_plane_node_refs`,
-`worker_node_refs`, `node_pools.<pool>.worker_node_refs` and
-`static_nodes.<group>.node_refs` — and prompt with `fzf` when there's more than one.
-`kube-start` and `kube-stop` also offer "all". With exactly one node, there's no prompt.
+| Set | Tasks |
+|---|---|
+| `core` | Select Folder, Cloud Login, Init, Plan, Apply, Destroy |
+| `machines` | Start Node, Stop Node, Shell |
+| `cluster` | Tail, Status, Kubeconfig, Secrets, Patch OS |
 
-A cluster can also list machines that sit next to it but aren't Kubernetes nodes, such as
-a Windows dev machine, in an `extra_node_refs` output of the same shape
-(`{ "<name>" = { instance_id = "...", provider = "aws" } }`). `kube-start`, `kube-stop`
-and `kube-shell` include them; `kube-tail` and `kube-status` leave them out, since they
-read RKE2's state on the node.
+`kube-tasks-merge --sets core,machines` merges only the named sets. With no `--sets` it
+merges all three. A repo names its sets in the `postStartCommand` of its
+`devcontainer.json`. A pipeline has no buttons and calls `kube-tf` directly.
 
-`kube-kubeconfig` deliberately stays pinned to the genesis node: unlike join status,
-which is genuinely per-node (each node bootstraps independently), the kubeconfig's
-server address gets rewritten to the cluster's shared FQDN/IP regardless of which node
-the raw file was read from — so once a node has joined, which one you fetch from
-doesn't change the result.
+A task in `tasks-custom.json` can carry a `providers` array. `kube-tasks-merge` drops it
+unless the repo has a matching `live/<provider>/` folder, and removes the key from the
+output. A repo with no `live/`, or an empty one, keeps everything.
 
-Autoscaled nodes (AWS Auto Scaling groups / Azure VMSS) are not listed: Terraform has
-no per-instance list for them. Stopping all nodes of an AWS cluster scales those groups
-to zero instead.
+## Provider dispatch
+
+`kube-tf` never branches on the provider. Terragrunt reads the provider module from the
+unit's own `terragrunt.hcl`.
+
+The other verbs call provider APIs, so they read `node_provider` from the unit's outputs
+(`terragrunt output -json`) and branch on it. `kube-cloud-login` is the exception: it must
+work before any state exists, so it reads the provider from the `live/<provider>/` folder.
+
+## Picking a node
+
+A unit can hold several nodes. Shell, Tail, Status, Start and Stop read the node refs of
+the unit and ask with `fzf` when there is more than one. Start and Stop also offer "all".
+With one node there is no prompt.
+
+`kube-kubeconfig` reads from the control-plane node. Once a node has joined, which node you
+read from does not change the result, because the server address is rewritten to the
+cluster's shared name or IP.

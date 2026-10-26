@@ -1,7 +1,7 @@
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-SCRIPTS := $(shell find scripts checks tests .github/scripts -type f -name '*.sh' -o -type f -path 'scripts/kube-*' -o -type f -path scripts/select-cluster | sort -u)
+SCRIPTS := $(shell find scripts checks tests .github/scripts -type f -name '*.sh' -o -type f -path 'scripts/kube-*' -o -type f -path scripts/select-folder | sort -u)
 IMAGE   ?= kube-devenv:local
 
 .PHONY: test-commit test-checks test-integration lint-shell lint-dockerfile secrets pipeline-lint trivyignore-expiry scan-image
@@ -22,6 +22,7 @@ pipeline-lint:
 
 test-checks:
 	tests/checks.sh
+	tests/verbs.sh
 
 test-integration:
 	docker build -t $(IMAGE) .

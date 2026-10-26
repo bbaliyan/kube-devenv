@@ -1,116 +1,165 @@
 #!/usr/bin/env bash
-# kube-common.sh — shared helpers for the provider-dispatch verb-scripts
-# (kube-status, kube-shell, kube-kubeconfig, kube-start, kube-run,
-# kube-cloud-login). Sourced, not run directly: `source kube-common.sh`
-# (found via PATH like the other scripts).
+# kube-common.sh — shared helpers for the verb-scripts (kube-tf, kube-status,
+# kube-shell, kube-kubeconfig, kube-start, kube-run, kube-cloud-login). Sourced,
+# not run directly: `source kube-common.sh` (found via PATH like the other scripts).
+#
+# The selected folder is any folder under live/. Its kind comes from the files in
+# it (target_mode). A verb that acts on machines or a cluster reads one unit's
+# outputs once and refuses a unit of the wrong kind. No helper reads a folder
+# layout such as clusters/ to find out what a folder is.
 
-# selected_cluster_dir — resolve the persisted 'Select Cluster' choice to an
+# selected_folder_dir — resolve the persisted 'Select Folder' choice to an
 # absolute path, or exit with a clear error. Echoes the path on success.
-selected_cluster_dir() {
+selected_folder_dir() {
   local workspace persist_file dir
   workspace="${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-  persist_file="${workspace}/.vscode/.selected-cluster"
+  persist_file="${workspace}/.vscode/.selected-folder"
 
   if [[ ! -f "${persist_file}" ]]; then
-    echo "Error: no cluster selected — run 'Select Cluster' first." >&2
+    echo "Error: no folder selected — run 'Select Folder' first." >&2
     exit 1
   fi
 
   dir="$(cat "${persist_file}")"
 
   if [[ ! -d "${dir}" ]]; then
-    echo "Error: selected cluster directory '${dir}' no longer exists." >&2
-    echo "Run 'Select Cluster' to pick a valid cluster." >&2
+    echo "Error: selected folder '${dir}' no longer exists." >&2
+    echo "Run 'Select Folder' to pick a valid folder." >&2
     exit 1
   fi
 
   echo "${dir}"
 }
 
-# cluster_provider <cluster_dir> — extract the provider name from a cluster's
-# live/<provider>/... path. Deliberately path-based rather than reading
-# terragrunt output: this must work before 'terragrunt init' has ever run
-# (e.g. to authenticate for the first time), when no state/output exists yet.
-cluster_provider() {
-  local dir="$1" provider
-  provider=$(echo "${dir}" | sed -n 's|.*/live/\([^/]*\)/.*|\1|p')
-  if [[ -z "${provider}" ]]; then
-    echo "Error: could not determine provider from cluster path '${dir}'" >&2
-    echo "  (expected .../live/<provider>/clusters/<name>)" >&2
-    exit 1
-  fi
-  echo "${provider}"
-}
-
-# cluster_name_from_pwd — derive the cluster name from the working directory.
-# Works both from the cluster directory itself (single-node all-in-one layout,
-# live/<provider>/clusters/<name>/) and from a subunit of a multi-node cluster
-# (clusters/<name>/control-plane/ or clusters/<name>/node-pools/<pool>/): it
-# takes the path segment directly under the nearest `clusters/` ancestor. That
-# segment is the cluster_name. Falls back to the current directory's basename
-# when not under a `clusters/` path.
-cluster_name_from_pwd() {
-  local pwd_path after
-  pwd_path="$(pwd)"
-  if [[ "${pwd_path}" == */clusters/* ]]; then
-    after="${pwd_path##*/clusters/}"   # e.g. "cluster-2/control-plane" or "cluster-1"
-    echo "${after%%/*}"                # -> "cluster-2" or "cluster-1"
-  else
-    echo "$(basename "${pwd_path}")"
-  fi
-}
-
-# terragrunt_run_mode — classify the current directory for the lifecycle verbs
-# (kube-init/kube-plan/kube-apply/kube-destroy). Echoes one of:
-#   single  the cwd is a single terragrunt unit (has its own terragrunt.hcl)
-#   all     the cwd is a multi-unit cluster root (no terragrunt.hcl of its own
-#           but units live beneath it) — drive it with `terragrunt run --all`
-#   none    neither (a misconfigured / wrong directory)
-# The multi-unit case is a multi-node cluster like proxmox/clusters/cluster-2,
-# whose control-plane/ and node-pools/<pool>/ units terragrunt orders by their
-# dependency DAG.
-terragrunt_run_mode() {
+# target_mode — classify the current directory from its files. Echoes one of,
+# checked in this order:
+#   unit   terragrunt.hcl: run `terragrunt <verb>`
+#   stack  terragrunt.stack.hcl: run `terragrunt stack run <verb>`
+#   units  units below it: run `terragrunt run --all -- <verb>`
+#   tofu   only *.tf files: run `tofu <verb>`
+#   none   anything else
+# Units that a stack run generated (.terragrunt-stack/) do not make a folder "units".
+target_mode() {
   if [[ -f terragrunt.hcl ]]; then
-    echo single
-  elif find . -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -print -quit 2>/dev/null | grep -q .; then
-    echo all
+    echo unit
+  elif [[ -f terragrunt.stack.hcl ]]; then
+    echo stack
+  elif find . -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -not -path '*/.terraform/*' -not -path '*/.terragrunt-stack/*' -print -quit 2>/dev/null | grep -q .; then
+    echo units
+  elif compgen -G '*.tf' >/dev/null; then
+    echo tofu
   else
     echo none
   fi
 }
 
-# resolve_control_plane_unit — make cluster-level verbs (kube-kubeconfig)
-# agnostic to single- vs multi-node layout. A single-node cluster and each unit
-# of a multi-node cluster are already terragrunt units (own terragrunt.hcl), so
-# this is a no-op there. When the cwd is a multi-node cluster ROOT (no
-# terragrunt.hcl of its own), cd into its control-plane/ unit — the kubeconfig
-# and API server always live on a server node, so that unit is the unambiguous
-# source regardless of how many workers the cluster has.
-resolve_control_plane_unit() {
-  [[ -f terragrunt.hcl ]] && return 0
-  if [[ -f control-plane/terragrunt.hcl ]]; then
-    echo "Multi-node cluster root: reading the kubeconfig from the control-plane unit." >&2
-    cd control-plane || exit 1
+# target_label — the path below live/. The typed confirmation asks for it and
+# the refusals name it. Outside live/ it is the folder name.
+target_label() {
+  local here
+  here="$(pwd)"
+  if [[ "${here}" == */live/* ]]; then
+    echo "${here##*/live/}"
+  else
+    basename "${here}"
+  fi
+}
+
+# target_provider — the provider, which is the folder right below live/
+# (live/<provider>/...). A login must work before the first init, so it cannot
+# come from Terraform output. Outside live/ the helper exits and says so.
+target_provider() {
+  local here provider
+  here="$(pwd)"
+  if [[ "${here}" != */live/* ]]; then
+    echo "Error: '${here}' is not under live/. The provider is the folder right below live/ (live/<provider>/...)." >&2
+    exit 1
+  fi
+  provider="${here##*/live/}"
+  echo "${provider%%/*}"
+}
+
+# unit_dirs — echo the terragrunt unit directories at or below the cwd: the cwd
+# itself when it has a terragrunt.hcl, else every unit below it, sorted. Units
+# that a stack run generated under .terragrunt-stack/ are included, so the verbs
+# can reach the machines of a stack file.
+unit_dirs() {
+  if [[ -f terragrunt.hcl ]]; then
+    pwd
     return 0
   fi
-  echo "Error: '$(pwd)' has no terragrunt.hcl and no control-plane/ unit to read from." >&2
+  find "$(pwd)" -mindepth 2 -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -not -path '*/.terraform/*' -print 2>/dev/null \
+    | sed 's|/terragrunt.hcl$||' | sort
+}
+
+# refuse <what> — the one-line refusal that every verb of a kind uses.
+refuse() {
+  echo "Error: '$(target_label)' $1." >&2
   exit 1
 }
 
-# terragrunt_outputs — read terragrunt output -json into TF_OUTPUTS, or exit
-# with a provider-neutral error. Per-node/read verbs operate on a single unit,
-# so if the cwd is a multi-node cluster root (no terragrunt.hcl of its own),
-# point the operator at the specific unit to select instead.
-terragrunt_outputs() {
-  if [[ ! -f terragrunt.hcl && "$(terragrunt_run_mode)" == "all" ]]; then
-    local rel
-    rel="$(pwd | sed 's|.*/live/|live/|')"
-    echo "Error: '$(pwd)' is a multi-node cluster root, not a single unit." >&2
-    echo "  Per-node verbs (kube-kubeconfig/kube-status/kube-shell/kube-start) act on" >&2
-    echo "  one unit. Select the control plane (for the kubeconfig/API) or a node pool:" >&2
-    echo "    select-cluster ${rel}/control-plane" >&2
+# pick_unit [--all] — make the cwd the one unit a verb acts on. A unit stays as
+# it is. A folder of units, or a stack file, gets a picker of the unit paths
+# below it (files only, no state read). With one unit there is no prompt. The
+# choice is not saved. With --all the picker has an "all" entry: the helper
+# then sets PICKED_ALL=1 and leaves the cwd alone.
+pick_unit() {
+  local with_all=0 units=() choice
+  [[ "${1:-}" == "--all" ]] && with_all=1
+  PICKED_ALL=0
+
+  case "$(target_mode)" in
+    unit) return 0 ;;
+    units | stack) ;;
+    *) refuse "holds no unit" ;;
+  esac
+
+  mapfile -t units < <(unit_dirs | sed "s|^$(pwd)/||")
+  if [[ "${#units[@]}" -eq 0 ]]; then
+    echo "Error: '$(target_label)' has no unit yet. For a stack file, run 'kube-tf init' to generate its units." >&2
     exit 1
   fi
+
+  if [[ "${#units[@]}" -eq 1 && "${with_all}" -eq 0 ]]; then
+    choice="${units[0]}"
+  else
+    choice=$({
+      ((with_all)) && echo all
+      printf '%s\n' "${units[@]}"
+    } | fzf --prompt="Select unit: " --height=15 --border --bind='left-click:accept') || {
+      echo "No unit selected." >&2
+      exit 1
+    }
+  fi
+
+  if [[ "${choice}" == all && "${with_all}" -eq 1 ]]; then
+    # shellcheck disable=SC2034 # read by kube-start and kube-stop, which source this file
+    PICKED_ALL=1
+    return 0
+  fi
+  cd "${choice}" || exit 1
+}
+
+# for_each_unit <script> [args...] — run a verb-script in every unit below the
+# cwd with KUBE_ALL_NODES=1, which makes select_nodes take every node without a
+# prompt. A unit that fails is reported and the others still run. The exit
+# status is non-zero when any unit failed.
+for_each_unit() {
+  local unit failed=()
+  while IFS= read -r unit; do
+    echo "== ${unit#"$(pwd)"/}"
+    (cd "${unit}" && KUBE_ALL_NODES=1 "$@") || failed+=("${unit#"$(pwd)"/}")
+  done < <(unit_dirs)
+  if [[ "${#failed[@]}" -gt 0 ]]; then
+    echo "Failed or refused in: ${failed[*]}" >&2
+    return 1
+  fi
+}
+
+# terragrunt_outputs — read terragrunt output -json into TF_OUTPUTS, or exit
+# with a provider-neutral error. Call pick_unit first: this reads one unit.
+terragrunt_outputs() {
+  [[ "$(target_mode)" == unit ]] || refuse "is not one unit. Select a unit"
   # shellcheck disable=SC2034 # read by the verb-scripts that source this file
   TF_OUTPUTS=$(terragrunt output -json) || {
     echo "Error: 'terragrunt output' failed (see output above) — common causes:" >&2
@@ -118,6 +167,24 @@ terragrunt_outputs() {
     echo "  or no state applied yet." >&2
     exit 1
   }
+}
+
+# require_machines — the unit's outputs must list machines (control-plane, worker,
+# static or extra node refs). For Start, Stop and Shell.
+require_machines() {
+  [[ -n "$(_node_refs_from_outputs "${TF_OUTPUTS}")" ]] || refuse "lists no machines"
+}
+
+# require_k8s_nodes — the unit's outputs must list Kubernetes nodes, which leaves
+# out extra machines. For Tail and Status, which read RKE2 on the node.
+require_k8s_nodes() {
+  [[ -n "$(_node_refs_from_outputs "${TF_OUTPUTS}" k8s)" ]] || refuse "is not a cluster: it lists no Kubernetes nodes"
+}
+
+# require_control_plane — the unit's outputs must name a control-plane node
+# (node_control_ref). For Kubeconfig and Secrets.
+require_control_plane() {
+  echo "${TF_OUTPUTS}" | jq -e '.node_control_ref.value // empty' >/dev/null 2>&1 || refuse "is not a cluster: it has no control-plane node"
 }
 
 # _node_refs_from_outputs <tf_outputs_json> [k8s] — echoes this unit's full node
@@ -135,7 +202,7 @@ terragrunt_outputs() {
 #     second argument is "k8s", for verbs that talk to RKE2 on the node)
 # Missing any of these contributes nothing (empty map), so this is safe
 # whether the unit is control-plane-only, node-pool-only, or the merged
-# composition. Shared by select_node, select_nodes and select_node_any_unit so
+# composition. Shared by select_node, select_nodes and the require_* helpers so
 # "which output(s) hold the node list" lives in one place.
 #
 # Autoscaled nodes (ASG/VMSS-managed) have no per-instance list Terraform
@@ -204,7 +271,8 @@ select_nodes() {
     exit 1
   fi
 
-  if [[ "$(echo "${refs_json}" | jq 'length')" -gt 1 ]]; then
+  # KUBE_ALL_NODES=1 comes from for_each_unit: the owner already chose "all units".
+  if [[ "$(echo "${refs_json}" | jq 'length')" -gt 1 && "${KUBE_ALL_NODES:-0}" != 1 ]]; then
     picked_name=$({
       printf 'all\tevery node\n'
       echo "${refs_json}" | jq -r 'to_entries[] | "\(.key)\t\(.value.ip // .value.instance_id)"'
@@ -218,82 +286,6 @@ select_nodes() {
 
   echo "${refs_json}" | jq -c --arg n "${picked_name}" \
     'to_entries[] | select($n == "all" or .key == $n) | .value + {name: .key}'
-}
-
-# terragrunt_target_units — echo the terragrunt unit directories to search for
-# nodes from the cwd: itself when the cwd is a single unit (has its own
-# terragrunt.hcl), or control-plane + every node-pools/<pool> unit when the
-# cwd is a multi-node cluster root (terragrunt_run_mode == "all"). Used by
-# select_node_any_unit so per-node verbs work whether the operator selected a
-# specific unit or the cluster root itself.
-terragrunt_target_units() {
-  if [[ -f terragrunt.hcl ]]; then
-    pwd
-    return 0
-  fi
-  if [[ "$(terragrunt_run_mode)" != "all" ]]; then
-    echo "Error: '$(pwd)' has no terragrunt.hcl and no node-pool units beneath it." >&2
-    exit 1
-  fi
-  [[ -f control-plane/terragrunt.hcl ]] && echo "$(pwd)/control-plane"
-  if [[ -d node-pools ]]; then
-    find "$(pwd)/node-pools" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | while IFS= read -r d; do
-      [[ -f "${d}/terragrunt.hcl" ]] && echo "${d}"
-    done
-  fi
-}
-
-# select_node_any_unit [k8s] — like select_node, but works whether the cwd is a
-# single terragrunt unit or a multi-node cluster root: aggregates every node
-# from every unit terragrunt_target_units finds into one fzf list (labeled
-# "unit  name  ip-or-instance_id"), auto-selecting with no prompt when
-# there's exactly one node total across all of them. Echoes the chosen node
-# as JSON, merging in "name", "provider" (that unit's node_provider), and
-# "unit" (absolute path to the unit directory the node came from) — callers
-# cd into "unit" before dispatching further provider calls (e.g. Azure's
-# resource_group_name) so those run in the right unit's context.
-select_node_any_unit() {
-  local scope="${1:-all}" unit units=() rows="" tf_outputs provider refs_json count picked_name
-
-  mapfile -t units < <(terragrunt_target_units)
-  if [[ "${#units[@]}" -eq 0 ]]; then
-    echo "Error: no terragrunt units found under '$(pwd)'." >&2
-    exit 1
-  fi
-
-  for unit in "${units[@]}"; do
-    tf_outputs=$(cd "${unit}" && terragrunt output -json 2>/dev/null) || continue
-    provider=$(echo "${tf_outputs}" | jq -r '.node_provider.value // empty')
-    refs_json=$(_node_refs_from_outputs "${tf_outputs}" "${scope}")
-    [[ -z "${refs_json}" ]] && continue
-    rows+=$(echo "${refs_json}" | jq -c --arg unit "${unit}" --arg provider "${provider}" \
-      'to_entries[] | .value + {name: .key, unit: $unit, provider: $provider}')$'\n'
-  done
-  rows="${rows%$'\n'}"
-
-  if [[ -z "${rows}" ]]; then
-    echo "Error: no nodes found in any unit under '$(pwd)'." >&2
-    echo "  Either state genuinely isn't applied yet, or this container has never" >&2
-    echo "  run 'terragrunt init' here (.terraform/.terragrunt-cache are gitignored" >&2
-    echo "  and don't survive a devcontainer rebuild) — try 'kube-init' first." >&2
-    exit 1
-  fi
-
-  count=$(echo "${rows}" | wc -l | tr -d ' ')
-  if [[ "${count}" -eq 1 ]]; then
-    echo "${rows}"
-    return 0
-  fi
-
-  picked_name=$(echo "${rows}" | jq -r '"\(.unit | sub(".*/clusters/"; ""))\t\(.name)\t\(.ip // .instance_id)"' \
-    | fzf --prompt="Select node: " --height=15 --border --with-nth=1,2,3 --delimiter='\t' \
-          --bind='left-click:accept' \
-    | cut -f2) || {
-    echo "No node selected." >&2
-    exit 1
-  }
-
-  echo "${rows}" | jq -c --arg n "${picked_name}" 'select(.name == $n)' | head -1
 }
 
 # proxmox_host — parse the PVE hostname out of PROXMOX_VE_ENDPOINT, or exit.
@@ -310,29 +302,23 @@ proxmox_host() {
   echo "${host}"
 }
 
-# proxmox_control_plane_dir — resolve the control-plane terragrunt unit
-# directory for the cluster the cwd belongs to, regardless of which unit the
-# cwd actually is: already inside control-plane/, inside a node-pools/<pool>/
-# worker unit (walk up to the cluster root, then into control-plane/), or a
-# single-node all_in_one cluster (no control-plane/ subdir at all — the
-# cluster-root unit itself IS the control plane). Node-pool workers share the
-# control plane's Ansible SSH account/key (proxmox-node-pool exposes no ssh
-# outputs of its own — kube-examples' os-patch tooling established this same
-# pattern), so ssh creds always get read from here.
+# proxmox_control_plane_dir — the unit to read the SSH account and key from.
+# Node-pool workers share the control plane's Ansible SSH account and key
+# (proxmox-node-pool exposes no ssh outputs of its own), so a worker unit reads
+# them from a control-plane/ unit next to it. The first of these that holds a
+# terragrunt.hcl wins: ./control-plane (the cwd is a folder of units),
+# ../control-plane (the cwd is the control plane or a sibling pool) and
+# ../../control-plane (the cwd is node-pools/<pool>). Otherwise the cwd itself
+# is the unit, as in a single-node cluster.
 proxmox_control_plane_dir() {
-  local pwd_path clusters_root cp_dir
-  pwd_path="$(pwd)"
-  if [[ "${pwd_path}" != */clusters/* ]]; then
-    echo "Error: '${pwd_path}' is not under a live/<provider>/clusters/ path." >&2
-    exit 1
-  fi
-  clusters_root="${pwd_path%%/clusters/*}/clusters/$(echo "${pwd_path##*/clusters/}" | cut -d/ -f1)"
-  cp_dir="${clusters_root}/control-plane"
-  if [[ -d "${cp_dir}" ]]; then
-    echo "${cp_dir}"
-  else
-    echo "${clusters_root}"
-  fi
+  local candidate
+  for candidate in ./control-plane ../control-plane ../../control-plane; do
+    if [[ -f "${candidate}/terragrunt.hcl" ]]; then
+      (cd "${candidate}" && pwd)
+      return 0
+    fi
+  done
+  pwd
 }
 
 # proxmox_vm_ssh_key / proxmox_vm_ssh_user — SSH access to the node VM itself
@@ -377,7 +363,7 @@ proxmox_vm_ssh_key() {
 cluster_name_from_outputs() {
   local name
   name=$(echo "$1" | jq -r '.cluster_name.value // empty')
-  echo "${name:-$(cluster_name_from_pwd)}"
+  echo "${name:-$(basename "$(pwd)")}"
 }
 
 # kubeconfig_stem <tf_outputs_json> — names the kubeconfig file and, via rewrite_kubeconfig, the

@@ -3,20 +3,20 @@
 # AWS/Azure use an inbound-port-free control-plane primitive (SSM /
 # run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
 # the node — see live/proxmox/README.md).
-# Run from either a specific unit (live/<provider>/clusters/<name>/[control-plane|
-# node-pools/<pool>]/) or a multi-node cluster root (live/<provider>/clusters/<name>/)
-# — select_node_any_unit aggregates nodes across every unit in the latter case.
-# Prompts to pick a node whenever there's more than one across whatever's in scope.
+# Run from the selected folder (kube-run does this). With several units it asks
+# which one. Prompts to pick a node when the unit has more than one. Works on
+# any unit that lists machines, a Windows or Linux machine included.
 set -euo pipefail
 source kube-common.sh
 
-NODE=$(select_node_any_unit)
+pick_unit
+terragrunt_outputs
+require_machines
+NODE=$(select_node "${TF_OUTPUTS}")
 NODE_NAME=$(echo "${NODE}" | jq -r '.name')
 NODE_IP=$(echo "${NODE}" | jq -r '.ip // empty')
 NODE_INSTANCE_ID=$(echo "${NODE}" | jq -r '.instance_id')
-NODE_PROVIDER=$(echo "${NODE}" | jq -r '.provider')
-NODE_UNIT=$(echo "${NODE}" | jq -r '.unit')
-cd "${NODE_UNIT}"
+NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
 case "${NODE_PROVIDER}" in
 

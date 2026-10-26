@@ -11,21 +11,24 @@
 # account/key node-bootstrap itself connects with), and no os-patch/ unit
 # exists for AWS/Azure clusters yet.
 #
-# Run from the cluster directory (live/proxmox/clusters/<name>/ or any of its
-# units) — same as kube-apply/kube-destroy, typed cluster-name confirmation
-# since this can reboot every node in the cluster.
+# Run from the selected folder (kube-run does this), which must be one cluster
+# unit under live/proxmox/. The script argument is the unit's folder name,
+# because ops/upgrade-os.sh finds the unit from it. Typed confirmation, since
+# this can reboot every node in the cluster.
 set -euo pipefail
 source kube-common.sh
 
-CLUSTER_DIR="$(pwd)"
-CLUSTER=$(cluster_name_from_pwd)
-PROVIDER=$(cluster_provider "${CLUSTER_DIR}")
+CLUSTER=$(basename "$(pwd)")
+PROVIDER=$(target_provider)
 
 if [[ "${PROVIDER}" != "proxmox" ]]; then
   echo "Error: kube-os-patch only supports Proxmox today (got provider '${PROVIDER}')." >&2
   echo "  No os-patch/ terragrunt unit exists for AWS/Azure clusters yet." >&2
   exit 1
 fi
+
+terragrunt_outputs
+require_k8s_nodes
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 SCRIPT="${REPO_ROOT}/ops/upgrade-os.sh"

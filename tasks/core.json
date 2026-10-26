@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "$(tag) Select Folder",
+      "type": "shell",
+      "command": "select-folder",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": [],
+      "detail": "Pick the folder under live/ that the other tasks act on. Run this first."
+    },
+    {
+      "label": "$(key) Cloud Login",
+      "type": "shell",
+      "command": "kube-cloud-login",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(run-all) Init",
+      "type": "shell",
+      "command": "kube-run kube-tf init",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(diff) Plan",
+      "detail": "Review the change before Apply.",
+      "type": "shell",
+      "command": "kube-run kube-tf plan",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(play) Apply",
+      "type": "shell",
+      "command": "kube-run kube-tf apply",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(trash) Destroy",
+      "type": "shell",
+      "command": "kube-run kube-tf destroy",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
