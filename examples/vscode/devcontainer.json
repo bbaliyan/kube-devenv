@@ -11,10 +11,10 @@
   "image": "ghcr.io/bbaliyan/kube-devenv:v0.1.0@sha256:<digest>",
   "name": "kube-devenv",
 
-  // Merge base tasks with any consumer-defined tasks-custom.json on every container start.
+  // Merge the named task sets (core, machines, cluster) with any tasks-custom.json on every container start.
   // .vscode/tasks.json is gitignored — it stays up-to-date with the image.
   "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-compute",
-  "postStartCommand": "kube-tasks-merge",
+  "postStartCommand": "kube-tasks-merge --sets core,machines,cluster",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
     // Write a loader script for the token (refreshed via `kube-proxmox-login`)

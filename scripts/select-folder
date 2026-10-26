@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# select-folder — pick and persist the folder the other verbs act on.
+#
+# Usage (from workspace root):
+#   select-folder               # interactive fzf picker; a typed path is accepted
+#   select-folder <path>        # set directly (relative or absolute)
+#   select-folder --list        # print the folders the picker would offer
+#   select-folder --current     # print the currently selected path
+#
+# The picker reads files only. It searches under live/ and offers every folder
+# with a terragrunt.hcl, a terragrunt.stack.hcl or a .tf file, and every folder
+# that holds units. It skips cache and generated folders.
+#
+# Persists to .vscode/.selected-folder and sets the VS Code window title in
+# .vscode/settings.json so the folder is always visible.
+set -euo pipefail
+source kube-common.sh
+
+WORKSPACE="${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+PERSIST_FILE="${WORKSPACE}/.vscode/.selected-folder"
+SETTINGS_FILE="${WORKSPACE}/.vscode/settings.json"
+SEARCH_ROOT="${WORKSPACE}/live"
+
+# list_folders — one workspace-relative path per line.
+list_folders() {
+  [[ -d "${SEARCH_ROOT}" ]] || return 0
+  {
+    find "${SEARCH_ROOT}" \( -name .terragrunt-cache -o -name .terraform -o -name .terragrunt-stack -o -name .git \) -prune -o \
+      -type f \( -name terragrunt.hcl -o -name terragrunt.stack.hcl -o -name '*.tf' \) -print 2>/dev/null \
+      | sed 's|/[^/]*$||'
+    # A folder that holds units: every folder above a unit, below live/.
+    find "${SEARCH_ROOT}" \( -name .terragrunt-cache -o -name .terraform -o -name .terragrunt-stack -o -name .git \) -prune -o \
+      -type f -name terragrunt.hcl -print 2>/dev/null \
+      | sed 's|/[^/]*$||' \
+      | while IFS= read -r unit; do
+        parent="$(dirname "${unit}")"
+        while [[ "${parent}" != "${SEARCH_ROOT}" && "${parent}" == "${SEARCH_ROOT}"/* ]]; do
+          echo "${parent}"
+          parent="$(dirname "${parent}")"
+        done
+      done
+  } | sed "s|^${WORKSPACE}/||" | sort -u
+}
+
+if [[ "${1:-}" == "--current" ]]; then
+  if [[ -f "${PERSIST_FILE}" ]]; then
+    cat "${PERSIST_FILE}"
+  else
+    echo "<none>"
+  fi
+  exit 0
+fi
+
+if [[ "${1:-}" == "--list" ]]; then
+  list_folders
+  exit 0
+fi
+
+if [[ $# -eq 0 ]]; then
+  mapfile -t FOLDERS < <(list_folders)
+
+  if [[ ${#FOLDERS[@]} -eq 0 ]]; then
+    echo "Error: no folder with a unit, a stack file or a .tf file under ${SEARCH_ROOT}" >&2
+    exit 1
+  fi
+
+  # Put the folder that is already selected first, so Enter re-selects it.
+  CURRENT=""
+  if [[ -f "${PERSIST_FILE}" ]]; then
+    CURRENT="$(cat "${PERSIST_FILE}")"
+    CURRENT="${CURRENT#"${WORKSPACE}"/}"
+  fi
+  if [[ -n "${CURRENT}" ]]; then
+    REORDERED=()
+    for f in "${FOLDERS[@]}"; do
+      [[ "${f}" == "${CURRENT}" ]] && REORDERED=("${CURRENT}")
+    done
+    if [[ ${#REORDERED[@]} -gt 0 ]]; then
+      for f in "${FOLDERS[@]}"; do
+        [[ "${f}" != "${CURRENT}" ]] && REORDERED+=("${f}")
+      done
+      FOLDERS=("${REORDERED[@]}")
+    fi
+  fi
+
+  # --print-query: with no match, the last line is the typed path.
+  PICKED=$(printf '%s\n' "${FOLDERS[@]}" \
+    | fzf --prompt="Select folder: " --height=12 --border --print-query \
+      --header="${CURRENT:+current: ${CURRENT}}" \
+      --bind='left-click:accept' || true)
+  TARGET="$(tail -n 1 <<<"${PICKED}")"
+  if [[ -z "${TARGET}" ]]; then
+    echo "No folder selected." >&2
+    exit 1
+  fi
+  [[ "${TARGET}" == /* ]] || TARGET="${WORKSPACE}/${TARGET}"
+else
+  TARGET="$1"
+  [[ "${TARGET}" == /* ]] || TARGET="${WORKSPACE}/${TARGET}"
+fi
+
+if [[ ! -d "${TARGET}" ]]; then
+  echo "Error: '${TARGET}' is not a folder" >&2
+  exit 1
+fi
+
+ABS="$(cd "${TARGET}" && pwd)"
+if [[ "$(cd "${ABS}" && target_mode)" == none ]]; then
+  echo "Error: '${ABS}' has no terragrunt.hcl, no terragrunt.stack.hcl, no units below it and no .tf files" >&2
+  exit 1
+fi
+
+LABEL="$(cd "${ABS}" && target_label)"
+WORKSPACE_NAME="$(basename "${WORKSPACE}")"
+
+mkdir -p "${WORKSPACE}/.vscode"
+echo "${ABS}" >"${PERSIST_FILE}"
+
+TITLE="${WORKSPACE_NAME} [${LABEL}] \${separator}\${appName}"
+if [[ -f "${SETTINGS_FILE}" ]]; then
+  TMP="$(mktemp)"
+  jq --arg t "${TITLE}" '. + {"window.title": $t}' "${SETTINGS_FILE}" >"${TMP}"
+  mv "${TMP}" "${SETTINGS_FILE}"
+else
+  jq -n --arg t "${TITLE}" '{"window.title": $t}' >"${SETTINGS_FILE}"
+fi
+
+echo "Selected: ${LABEL} (${ABS})"

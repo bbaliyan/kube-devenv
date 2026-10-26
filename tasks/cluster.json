@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "$(output) Tail",
+      "detail": "Live-tail a node's bootstrap log. Apply returns before a node finishes joining.",
+      "type": "shell",
+      "command": "kube-run kube-tail",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(pulse) Status",
+      "detail": "Report the RKE2 join status of a node.",
+      "type": "shell",
+      "command": "kube-run kube-status",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(plug) Kubeconfig",
+      "type": "shell",
+      "command": "kube-run kube-kubeconfig",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(shield) Secrets",
+      "type": "shell",
+      "command": "kube-run kube-secrets",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(sync) Patch OS",
+      "providers": [
+        "proxmox"
+      ],
+      "detail": "Patches every node's OS (Proxmox only) — control-plane one at a time, then workers. Prompts to confirm the cluster name.",
+      "type": "shell",
+      "command": "kube-run kube-os-patch",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

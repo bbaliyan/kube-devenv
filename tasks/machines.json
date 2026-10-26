@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "$(debug-start) Start Node",
+      "detail": "Start one stopped node, or all of them. Only needed when resuming a stopped cluster.",
+      "type": "shell",
+      "command": "kube-run kube-start",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(terminal) Shell",
+      "type": "shell",
+      "command": "kube-run kube-shell",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "$(debug-stop) Stop Node",
+      "detail": "Stop one node, or all of them, rather than waiting for a schedule. Start Node brings them back.",
+      "type": "shell",
+      "command": "kube-run kube-stop",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

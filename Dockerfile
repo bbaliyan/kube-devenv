@@ -364,11 +364,11 @@ RUN ansible-galaxy collection install \
 # ── Operator verb-scripts ─────────────────────────────────────────────────────
 
 COPY scripts/ /usr/local/bin/
-RUN chmod +x /usr/local/bin/kube-* /usr/local/bin/select-cluster 2>/dev/null || true
+RUN chmod +x /usr/local/bin/kube-* /usr/local/bin/select-folder 2>/dev/null || true
 
 # ── VS Code tasks ─────────────────────────────────────────────────────────────
 
-COPY tasks.json /usr/share/kube-devenv/tasks.json
+COPY tasks/ /usr/share/kube-devenv/tasks/
 
 # ── Shared check scripts ──────────────────────────────────────────────────────
 # Spokes call these from their Makefile at this fixed path. The smoke test fails

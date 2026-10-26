@@ -25,7 +25,7 @@ against supply chain attacks where a compromised registry rewrites a tag.
   "image": "ghcr.io/bbaliyan/kube-devenv:latest@sha256:295cb6d26fedbc7487d0265b86c6109638282e51c45d3d4649cf5dda99d65a0c",
   "name": "my-project",
   "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-compute",
-  "postStartCommand": "mkdir -p .vscode && cp /usr/share/kube-devenv/tasks.json .vscode/tasks.json",
+  "postStartCommand": "kube-tasks-merge --sets core,machines,cluster",
   "postCreateCommand": {
     "pre-commit": "pre-commit install || true",
     "proxmox-env": "printf '%s\\n' 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' > /etc/kube-compute-env.sh && grep -q 'kube-compute-env.sh' ~/.bashrc || echo 'source /etc/kube-compute-env.sh' >> ~/.bashrc"
@@ -72,30 +72,43 @@ current via automated PRs once configured.
 
 ## VS Code Tasks
 
-Once the container is running, this is how you actually work day to day: click a task
-instead of typing commands. Command Palette → **Tasks: Run Task**, or the status bar if
-you have the
+Once the container is running, you work by clicking a task instead of typing commands.
+Open the Command Palette and choose **Tasks: Run Task**, or use the status bar if you
+have the
 [Task Explorer / Tasks button](https://marketplace.visualstudio.com/items?itemName=actboy168.tasks)
-extension. Installed automatically to `.vscode/tasks.json` on container start.
+extension. `kube-tasks-merge` writes the tasks to `.vscode/tasks.json` on container start.
+
+The tasks come in three sets. Your repo names the sets it wants in the
+`postStartCommand` of its `devcontainer.json`:
+
+```jsonc
+"postStartCommand": "kube-tasks-merge --sets core,machines,cluster"
+```
+
+With no `--sets`, you get all three. A repo that manages only machines names
+`--sets core,machines`.
 
 Typical order of use, top to bottom:
 
-| Task | Purpose |
-|---|---|
-| **Select Cluster** | Pick which `live/<provider>/clusters/<name>/` directory the other tasks act on. Run this first — everything below operates on whatever's selected. |
-| **Cloud Login** | Authenticate against the selected cluster's provider (AWS SSO / Azure CLI / Proxmox token refresh). Provider is inferred from the cluster's path, so this works even before the first Init. Run this before anything below — Init and Start Node both need it. |
-| **Init** | `terragrunt init` for the selected cluster. |
-| **Apply** | `terragrunt apply` for the selected cluster (typed confirmation required). |
-| **Start Node** | Start one stopped node, or all of them (EC2 / Azure VM / Proxmox VM). Only needed when resuming a previously stopped cluster — skip this for a brand-new Apply. |
-| **Tail** | Live-tail a node's bootstrap log. Apply returns before a node finishes joining, so this is how to watch it. |
-| **Kubeconfig** | Fetch the cluster's kubeconfig and write it to `~/.kube/<cluster>.yaml` (`-<region>` suffix where the provider has a region concept, so same-named clusters in different regions don't collide). `<cluster>` is the name the cluster module reports, which a repo may qualify beyond the folder name. |
-| **Secrets** | Print in-cluster secrets (e.g. the ArgoCD admin password) — run after Kubeconfig. |
-| **Shell** | Break-glass shell session on a node, no inbound port required. |
-| **Stop Node** | Stop one node, or all of them, rather than waiting for a schedule. Stopping all nodes of an AWS cluster also scales its autoscaled groups to zero. |
-| **Destroy** | `terragrunt destroy` for the selected cluster (typed confirmation required). |
+| Set | Task | Purpose |
+|---|---|---|
+| core | **Select Folder** | Pick the folder under `live/` that the other tasks act on. Run this first. The folder can be one unit, a folder of units, a folder with a `terragrunt.stack.hcl`, or a plain OpenTofu root. |
+| core | **Cloud Login** | Log in to the folder's provider (AWS SSO, Azure CLI or the Proxmox token refresh). The provider is the folder right below `live/`, so this works before the first Init. |
+| core | **Init**, **Plan**, **Apply**, **Destroy** | Run the tool that fits the folder, through `kube-tf`. Apply and Destroy ask you to type the folder's path below `live/`. |
+| machines | **Start Node**, **Stop Node** | Start or stop one machine of a unit, or all of them. In a folder of units you pick a unit, or all units. |
+| machines | **Shell** | Break-glass shell on a machine, with no inbound port. |
+| cluster | **Tail** | Live-tail a node's bootstrap log. Apply returns before a node finishes joining, so this is how to watch it. |
+| cluster | **Status** | Report the RKE2 join status of a node. |
+| cluster | **Kubeconfig** | Write the cluster's kubeconfig to `~/.kube/<cluster>.yaml` (`-<region>` is added where the provider has a region, so same-named clusters in different regions do not collide). `<cluster>` is the name the cluster module reports. |
+| cluster | **Secrets** | Print in-cluster secrets, for example the Argo CD admin password. Run it after Kubeconfig. |
+| cluster | **Patch OS** | Patch the OS on every node (Proxmox only). |
+
+A task that needs a machine or a cluster reads one unit's outputs. If the unit is the wrong
+kind, the task stops with one line, for example `'aws/eu/win' is not a cluster: it has no
+control-plane node.`
 
 Prefer the terminal, or need this outside VS Code (CI, scripting)? Every task is a thin
-wrapper around a plain CLI command — see
+wrapper around a plain CLI command. In a pipeline, call `kube-tf` directly. See
 [`scripts/README.md`](scripts/README.md) for the full reference.
 
 ## What's inside

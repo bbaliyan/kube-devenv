@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # kube-stop — stop nodes: one, or every node of the cluster.
-# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node, or all of them, when there's more than one. Stopping every
+# Run from the selected folder (kube-run does this). With several units it asks
+# which one, or "all". Prompts to pick a node, or all of them, when there's
+# more than one. Stopping every
 # node of an AWS cluster also scales its autoscaled groups to zero, as the
 # nightly schedule does: a group replaces a stopped instance rather than
 # leaving it stopped.
 set -euo pipefail
 source kube-common.sh
 
+pick_unit --all
+if [[ "${PICKED_ALL}" == 1 ]]; then
+  for_each_unit "$0"
+  exit $?
+fi
 terragrunt_outputs
+require_machines
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
 NODES=$(select_nodes "${TF_OUTPUTS}")

@@ -8,14 +8,16 @@
 # AWS/Azure use an inbound-port-free control-plane primitive (SSM /
 # run-command); Proxmox uses direct SSH to the VM (requires port 22 open to
 # the node — see live/proxmox/README.md).
-# Run from the cluster directory (live/<provider>/clusters/<name>/). Prompts
-# to pick a node when there's more than one — status is genuinely per-node
+# Run from the selected folder (kube-run does this). With several units it asks
+# which one. Prompts to pick a node when there's more than one — status is genuinely per-node
 # (each node runs its own bootstrap independently), so genesis's status
 # doesn't tell you whether cp-1 or a worker actually finished.
 set -euo pipefail
 source kube-common.sh
 
+pick_unit
 terragrunt_outputs
+require_k8s_nodes
 NODE_PROVIDER=$(echo "${TF_OUTPUTS}" | jq -r '.node_provider.value')
 
 NODE=$(select_node "${TF_OUTPUTS}" k8s)

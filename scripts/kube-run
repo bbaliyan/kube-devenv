@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# kube-run — cd to the selected cluster directory and run a kube-* verb.
-# Used by VS Code task buttons so each task dispatches to the persisted cluster.
+# kube-run — cd to the selected folder and run a kube-* verb.
+# Used by VS Code task buttons so each task dispatches to the persisted folder.
 set -euo pipefail
 source kube-common.sh
 
-CLUSTER_DIR=$(selected_cluster_dir)
+FOLDER_DIR=$(selected_folder_dir)
 
-cd "${CLUSTER_DIR}"
+cd "${FOLDER_DIR}"
 exec "$@"

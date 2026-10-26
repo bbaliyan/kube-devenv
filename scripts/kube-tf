@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# kube-tf — init, plan, apply or destroy the folder you are in. It picks the tool
+# from the files in the folder (see target_mode in kube-common.sh):
+#   terragrunt.hcl        terragrunt <verb>
+#   terragrunt.stack.hcl  terragrunt stack run <verb>
+#   units below           terragrunt run --all -- <verb>
+#   only *.tf             tofu <verb>
+# It reads files only. Apply and destroy ask you to type the path below live/.
+#
+# Usage (from the folder, or through kube-run):
+#   kube-tf init|plan|apply|destroy [tool arguments...]
+#
+# --backend-bootstrap: Terragrunt no longer auto-creates a missing backend (for
+# example the state S3 bucket) on plain init. Without it, init also fails
+# resolving any `dependency` block, since each one is fetched through its own
+# fresh, uninitialized working copy.
+# -auto-approve skips the tool's own plan prompt, so run 'kube-tf plan' first to
+# review the change. The typed confirmation is the one deliberate gate. For
+# `run --all` and `stack run`, --non-interactive silences Terragrunt's own
+# run-queue prompt. A stack run adds -auto-approve to apply and destroy itself,
+# and a bare -auto-approve there fails.
+set -euo pipefail
+source kube-common.sh
+
+VERB="${1:-}"
+case "${VERB}" in
+  init | plan | apply | destroy) shift ;;
+  *)
+    echo "Usage: kube-tf init|plan|apply|destroy [tool arguments...]" >&2
+    exit 2
+    ;;
+esac
+
+MODE=$(target_mode)
+if [[ "${MODE}" == none ]]; then
+  echo "Error: '$(pwd)' has no terragrunt.hcl, no terragrunt.stack.hcl, no units below it and no .tf files." >&2
+  exit 1
+fi
+
+# Ansible's profile_tasks callback prints each task's duration as it runs plus a
+# longest-first summary at the end; timer adds total playbook runtime. It only
+# takes effect for Proxmox, where node-bootstrap runs ansible-playbook as a
+# direct child of this shell. An operator who already sets
+# ANSIBLE_CALLBACKS_ENABLED keeps their own value.
+export ANSIBLE_CALLBACKS_ENABLED="${ANSIBLE_CALLBACKS_ENABLED:-timer,profile_tasks}"
+
+if [[ "${VERB}" == apply || "${VERB}" == destroy ]]; then
+  LABEL=$(target_label)
+  case "${MODE}" in
+    unit) echo "About to ${VERB}: $(pwd)" ;;
+    tofu) echo "About to ${VERB} the OpenTofu root: $(pwd)" ;;
+    stack) echo "About to ${VERB} ALL units of the stack file in: $(pwd)" ;;
+    units)
+      mapfile -t UNITS < <(unit_dirs | sed "s|^$(pwd)/||")
+      echo "About to ${VERB} ALL ${#UNITS[@]} units under: $(pwd)"
+      printf '  %s\n' "${UNITS[@]}"
+      ;;
+  esac
+  echo -n "Type '${LABEL}' to confirm: "
+  read -r CONFIRM
+  if [[ "${CONFIRM}" != "${LABEL}" ]]; then
+    echo "Confirmation did not match. Aborting." >&2
+    exit 1
+  fi
+fi
+
+case "${MODE}:${VERB}" in
+  unit:init) exec terragrunt init --backend-bootstrap "$@" ;;
+  unit:plan) exec terragrunt plan "$@" ;;
+  unit:apply | unit:destroy) exec terragrunt "${VERB}" --backend-bootstrap -auto-approve "$@" ;;
+
+  stack:init | stack:plan | stack:apply | stack:destroy)
+    exec terragrunt stack run "${VERB}" --backend-bootstrap --non-interactive "$@"
+    ;;
+
+  units:init) exec terragrunt run --all --backend-bootstrap -- init "$@" ;;
+  units:plan) exec terragrunt run --all -- plan "$@" ;;
+  units:apply | units:destroy)
+    exec terragrunt run --all --non-interactive --backend-bootstrap -- "${VERB}" -auto-approve "$@"
+    ;;
+
+  tofu:init | tofu:plan) exec tofu "${VERB}" "$@" ;;
+  tofu:apply | tofu:destroy) exec tofu "${VERB}" -auto-approve "$@" ;;
+esac
