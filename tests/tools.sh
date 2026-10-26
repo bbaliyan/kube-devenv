@@ -42,52 +42,10 @@ job() {
 
 # ---- tofu and terragrunt, through kube-tf ----------------------------------
 
+# The units, the stack file and the plain root are real files in tests/fixtures/terragrunt/.
+# The copy is a git repository because the units find their module with get_repo_root().
 lab="$work/lab"
-mkdir -p "$lab/modules/demo" "$lab/units/demo" "$lab/live/aws/unit" "$lab/live/aws/env/a" "$lab/live/aws/env/b" \
-  "$lab/live/aws/stack" "$lab/live/aws/plain"
-cat >"$lab/modules/demo/main.tf" <<'TF'
-variable "region" {
-  default = "x"
-}
-resource "terraform_data" "r" {
-  input = var.region
-}
-TF
-cp "$lab/modules/demo/main.tf" "$lab/live/aws/plain/main.tf"
-cat >"$lab/units/demo/terragrunt.hcl" <<HCL
-terraform {
-  source = "$lab/modules/demo"
-}
-inputs = {
-  region = values.region
-}
-HCL
-for d in unit env/a env/b; do
-  cat >"$lab/live/aws/$d/terragrunt.hcl" <<HCL
-terraform {
-  source = "$lab/modules/demo"
-}
-inputs = {
-  region = "a"
-}
-HCL
-done
-cat >"$lab/live/aws/stack/terragrunt.stack.hcl" <<HCL
-unit "use1" {
-  source = "$lab/units/demo"
-  path   = "use1"
-  values = {
-    region = "us-east-1"
-  }
-}
-unit "euw1" {
-  source = "$lab/units/demo"
-  path   = "euw1"
-  values = {
-    region = "eu-west-1"
-  }
-}
-HCL
+cp -r "$repo/tests/fixtures/terragrunt" "$lab"
 git -C "$lab" init -q
 
 kube_tf() { # <folder below live/> <verb> — the confirmation word is the folder path
