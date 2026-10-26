@@ -23,6 +23,7 @@ pipeline-lint:
 test-checks:
 	tests/checks.sh
 	tests/verbs.sh
+	tests/tools.sh
 
 test-integration:
 	docker build -t $(IMAGE) .
