@@ -35,7 +35,7 @@ ARG TOFU_VERSION=1.13.2
 # *http.Client". Every terragrunt command dies before reaching tofu, so any
 # consumer behind a TLS-inspecting proxy cannot run at all.
 # renovate: datasource=github-releases depName=gruntwork-io/terragrunt
-ARG TERRAGRUNT_VERSION=1.2.0
+ARG TERRAGRUNT_VERSION=1.2.1
 
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.2
@@ -59,7 +59,7 @@ ARG AGE_VERSION=1.3.2
 ARG OPENBAO_VERSION=2.7.1
 
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION=2.103.0
+ARG GH_VERSION=2.103.2
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
@@ -114,13 +114,13 @@ ARG ANSIBLE_LINT_VERSION=26.10.1
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.43.118
+ARG BOTO3_VERSION=1.43.119
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.0
 
 # renovate: datasource=galaxy-collection depName=ansible.windows
-ARG ANSIBLE_WINDOWS_VERSION=3.9.1
+ARG ANSIBLE_WINDOWS_VERSION=3.9.2
 
 # renovate: datasource=galaxy-collection depName=ansible.posix
 ARG ANSIBLE_POSIX_VERSION=2.2.2
