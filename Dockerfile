@@ -56,10 +56,10 @@ ARG SOPS_VERSION=3.13.3
 ARG AGE_VERSION=1.3.2
 
 # renovate: datasource=github-releases depName=openbao/openbao
-ARG OPENBAO_VERSION=2.7.1
+ARG OPENBAO_VERSION=2.7.2
 
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION=2.103.2
+ARG GH_VERSION=2.103.3
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
@@ -114,7 +114,7 @@ ARG ANSIBLE_LINT_VERSION=26.10.1
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.43.120
+ARG BOTO3_VERSION=1.43.121
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.0
