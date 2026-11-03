@@ -107,7 +107,7 @@ ARG YAMALE_VERSION=6.1.0
 # unblocked: the base image is debian:trixie-slim (python3 3.13), confirmed
 # against a real build (ansible-core 2.21.2 installs and runs clean).
 # renovate: datasource=pypi depName=ansible-core
-ARG ANSIBLE_CORE_VERSION=2.21.5
+ARG ANSIBLE_CORE_VERSION=2.22.0
 
 # renovate: datasource=pypi depName=ansible-lint
 ARG ANSIBLE_LINT_VERSION=26.10.1
