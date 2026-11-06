@@ -2,8 +2,8 @@
 # Each entry must carry an expiry date: no silent forever-suppressions.
 # Format: CVE-YYYY-NNNN exp:YYYY-MM-DD reason:<one line>
 
-# Go stdlib and library findings inside prebuilt upstream tools (gitleaks, yamlfmt, cosign,
-# sops and others). The tools are not ours to rebuild; upstream has not released fixes yet.
+# Go stdlib and library findings inside prebuilt upstream tools (gitleaks, sops
+# and others). The tools are not ours to rebuild; upstream has not released fixes yet.
 # They run in CI and dev shells on trusted input. Review when the entries expire.
 CVE-2025-47913 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild
 CVE-2025-61726 exp:2026-12-18 reason:bundled in upstream release binaries, awaiting upstream rebuild

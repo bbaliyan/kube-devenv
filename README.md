@@ -27,7 +27,6 @@ against supply chain attacks where a compromised registry rewrites a tag.
   "initializeCommand": "mkdir -p ~/.aws ~/.kube ~/.config/age ~/.kube-compute",
   "postStartCommand": "kube-tasks-merge --sets core,machines,cluster",
   "postCreateCommand": {
-    "pre-commit": "pre-commit install || true",
     "proxmox-env": "printf '%s\\n' 'test -f /root/.kube-compute/proxmox && source /root/.kube-compute/proxmox' 'test -f /root/.kube-compute/proxmox-endpoint && source /root/.kube-compute/proxmox-endpoint' > /etc/kube-compute-env.sh && grep -q 'kube-compute-env.sh' ~/.bashrc || echo 'source /etc/kube-compute-env.sh' >> ~/.bashrc"
   },
   "mounts": [
@@ -122,14 +121,12 @@ wrapper around a plain CLI command. In a pipeline, call `kube-tf` directly. See
 | `sops` + `age` | Secret encryption (SOPS + age backend) |
 | `gh` | GitHub CLI |
 | `packer` `ansible-playbook` `nsupdate` | Image bake, node configuration, dynamic DNS updates |
-| `gitleaks` | Secret scanning (pre-commit + CI) |
+| `gitleaks` | Secret scanning (`make test-commit` and CI) |
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
-| `cosign` | Image signing + SBOM verification |
-| `yamlfmt` `shfmt` | Formatting linters |
-| `shellcheck` `hadolint` `yamllint` | Shell, Dockerfile and YAML linters |
+| `python3` `pyyaml` | YAML parsing in repo test scripts |
+| `shfmt` `shellcheck` `hadolint` `yamllint` | Shell, Dockerfile and YAML linters |
 | `kubeconform` `promtool` | Kubernetes manifest schema check, Prometheus rule check |
 | `ct` `helm unittest` | Helm chart lint and unit tests |
-| `pre-commit` `python3` `pyyaml` | Pre-commit framework + YAML parsing |
 | `kube-*` verb-scripts | Provider-agnostic cluster operations — see [scripts/README.md](scripts/README.md) |
 
 All versions are pinned in the `Dockerfile` via Renovate-managed `ARG` annotations and
@@ -192,8 +189,8 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   fails when an entry has no date or the date has passed.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
-  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
-  `ansible-lint`, `boto3`, and the `amazon.aws`, `ansible.windows` and `ansible.posix`
+  `gitleaks`, `trivy`, `shfmt`, `fzf`, `ansible-core`,
+  `ansible-lint`, `boto3`, and the `amazon.aws` and `ansible.posix`
   collections) are baked in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
   `crane config ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`, no registry UI needed. The full
@@ -202,7 +199,7 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   [GitHub Release](https://github.com/bbaliyan/kube-devenv/releases)' notes — built
   by actually running that release's image, not just reading the Dockerfile, so it's
   accurate even for the unpinned tools. The image carries `ansible-core`, `ansible-lint`,
-  `boto3` (with its matching `botocore`) and the `amazon.aws`, `ansible.windows` and
+  `boto3` (with its matching `botocore`) and the `amazon.aws` and
   `ansible.posix` collections, so a playbook that reaches AWS nodes over Session Manager runs
   with no install step, and the `ansible.posix.profile_tasks` and `ansible.posix.timer`
   callbacks can time each step of a run. The collections are in
@@ -252,7 +249,7 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
   helm version && aws --version &&
   sops --version && age --version && gitleaks version &&
-  trivy --version && cosign version && shfmt --version && yamlfmt --version &&
+  trivy --version && shfmt --version &&
   fzf --version && session-manager-plugin --version &&
   ansible-playbook --version
 "

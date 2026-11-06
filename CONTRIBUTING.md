@@ -61,7 +61,7 @@ make test-integration
 When you add a tool to the image, add it to `checks/tools.txt` so the smoke test
 verifies that it starts. If a repo relies on a particular job of the tool, add a case
 for that job to `tests/tools.sh`. Do not add a case for a tool that needs a network or
-a credential (`aws`, `az`, `gh`, `trivy`, `cosign`). Those stay at the smoke test.
+a credential (`aws`, `az`, `gh`, `trivy`). Those stay at the smoke test.
 
 The older manual check, still valid:
 
@@ -70,7 +70,7 @@ docker run --rm kube-devenv:local bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
   helm version && aws --version &&
   sops --version && age --version && gitleaks version &&
-  trivy --version && cosign version && shfmt --version && yamlfmt --version &&
+  trivy --version && shfmt --version &&
   fzf --version && session-manager-plugin --version
 "
 ```
