@@ -110,7 +110,7 @@ ARG YAMALE_VERSION=6.1.0
 ARG ANSIBLE_CORE_VERSION=2.22.0
 
 # renovate: datasource=pypi depName=ansible-lint
-ARG ANSIBLE_LINT_VERSION=26.10.1
+ARG ANSIBLE_LINT_VERSION=26.11.0
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
