@@ -41,7 +41,7 @@ ARG TERRAGRUNT_VERSION=1.2.1
 ARG PACKER_VERSION=1.16.2
 
 # renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
-ARG CLUSTERCTL_VERSION=1.14.3
+ARG CLUSTERCTL_VERSION=1.14.4
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.37.2
