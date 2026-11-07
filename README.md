@@ -124,7 +124,6 @@ wrapper around a plain CLI command. In a pipeline, call `kube-tf` directly. See
 | `packer` `ansible-playbook` `nsupdate` | Image bake, node configuration, dynamic DNS updates |
 | `gitleaks` | Secret scanning (pre-commit + CI) |
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
-| `cosign` | Image signing + SBOM verification |
 | `yamlfmt` `shfmt` | Formatting linters |
 | `shellcheck` `hadolint` `yamllint` | Shell, Dockerfile and YAML linters |
 | `kubeconform` `promtool` | Kubernetes manifest schema check, Prometheus rule check |
@@ -192,7 +191,7 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   fails when an entry has no date or the date has passed.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
-  `gitleaks`, `trivy`, `cosign`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
+  `gitleaks`, `trivy`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
   `ansible-lint`, `boto3`, and the `amazon.aws`, `ansible.windows` and `ansible.posix`
   collections) are baked in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
@@ -252,7 +251,7 @@ docker run --rm ghcr.io/bbaliyan/kube-devenv:latest bash -c "
   tofu version && terragrunt --version && kubectl version --client &&
   helm version && aws --version &&
   sops --version && age --version && gitleaks version &&
-  trivy --version && cosign version && shfmt --version && yamlfmt --version &&
+  trivy --version && shfmt --version && yamlfmt --version &&
   fzf --version && session-manager-plugin --version &&
   ansible-playbook --version
 "

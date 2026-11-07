@@ -3,7 +3,7 @@
 # file proves that a tool still does the one job a repo of ours relies on, offline and
 # with local state, so a version bump that changes its behaviour fails the PR that
 # makes it. It does not test upstream behaviour beyond that job, and it needs no cloud
-# account. Tools that need a network or a credential (aws, az, gh, trivy, cosign) stay
+# account. Tools that need a network or a credential (aws, az, gh, trivy) stay
 # at the smoke test.
 # Run inside the built image. A tool that is missing is a failure, not a skip.
 # No `set -e`: every case runs and failures are counted at the end.

@@ -12,8 +12,7 @@ row() {
 }
 
 # row_grep <tool> <pattern> <cmd...> — like row(), but greps for the first
-# matching line instead of assuming the version is on line 1. cosign prints
-# ASCII art before its GitVersion line, so head -1 grabs banner art there.
+# matching line instead of assuming the version is on line 1.
 row_grep() {
   local tool="$1" pattern="$2"
   shift 2
@@ -31,7 +30,6 @@ row "sops" sops --version
 row "age" age --version
 row "gitleaks" gitleaks version
 row "trivy" trivy --version
-row_grep "cosign" "^GitVersion:" cosign version
 row "yamlfmt" yamlfmt --version
 row "shfmt" shfmt --version
 row "fzf" fzf --version

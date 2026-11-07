@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, openbao, gh, trivy, cosign, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, gh, trivy, yamlfmt, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -40,9 +40,6 @@ ARG TERRAGRUNT_VERSION=1.2.1
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION=1.16.2
 
-# renovate: datasource=github-releases depName=kubernetes-sigs/cluster-api
-ARG CLUSTERCTL_VERSION=1.14.4
-
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.37.2
 
@@ -55,9 +52,6 @@ ARG SOPS_VERSION=3.13.3
 # renovate: datasource=github-releases depName=FiloSottile/age
 ARG AGE_VERSION=1.3.2
 
-# renovate: datasource=github-releases depName=openbao/openbao
-ARG OPENBAO_VERSION=2.7.2
-
 # renovate: datasource=github-releases depName=cli/cli
 ARG GH_VERSION=2.103.3
 
@@ -66,9 +60,6 @@ ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
 ARG TRIVY_VERSION=0.76.1
-
-# renovate: datasource=github-releases depName=sigstore/cosign
-ARG COSIGN_VERSION=3.1.4
 
 # renovate: datasource=github-releases depName=google/yamlfmt
 ARG YAMLFMT_VERSION=0.21.0
@@ -172,15 +163,6 @@ RUN curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_$
     && chmod +x /usr/local/bin/packer \
     && packer version
 
-# ── clusterctl ────────────────────────────────────────────────────────────────
-# kube-images' Proxmox bake (kube-node/packer/proxmox/build.sh) shells out to clusterctl
-# to render CAPI core + CAPMOX install manifests at build time.
-
-RUN curl -fsSL "https://github.com/kubernetes-sigs/cluster-api/releases/download/v${CLUSTERCTL_VERSION}/clusterctl-linux-${TARGETARCH}" \
-    -o /usr/local/bin/clusterctl \
-    && chmod +x /usr/local/bin/clusterctl \
-    && clusterctl version
-
 # ── kubectl ───────────────────────────────────────────────────────────────────
 
 RUN curl -fsSL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
@@ -208,17 +190,6 @@ RUN curl -fsSL "https://github.com/FiloSottile/age/releases/download/v${AGE_VERS
     | tar -xz --strip-components=1 -C /usr/local/bin age/age age/age-keygen \
     && age --version
 
-# ── OpenBao ───────────────────────────────────────────────────────────────────
-# CLI for the self-hosted OpenBao secret store consumer repos use to fetch
-# devcontainer-side TF_VAR_* secrets. No dedicated apt repository (unlike
-# Vault's apt.releases.hashicorp.com) — GitHub-release tarball, same pattern
-# as sops/age above. The tarball's `bao` binary sits at its root (verified
-# directly against a real release asset), no --strip-components needed.
-
-RUN curl -fsSL "https://github.com/openbao/openbao/releases/download/v${OPENBAO_VERSION}/openbao_${OPENBAO_VERSION}_linux_${TARGETARCH}.tar.gz" \
-    | tar -xz -C /usr/local/bin bao \
-    && bao version
-
 # ── GitHub CLI ────────────────────────────────────────────────────────────────
 
 RUN curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" \
@@ -240,13 +211,6 @@ RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "64bit" || echo "ARM64") \
     && curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${_arch}.tar.gz" \
     | tar -xz -C /usr/local/bin trivy \
     && trivy --version
-
-# ── cosign ────────────────────────────────────────────────────────────────────
-
-RUN curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${TARGETARCH}" \
-    -o /usr/local/bin/cosign \
-    && chmod +x /usr/local/bin/cosign \
-    && cosign version
 
 # ── yamlfmt ───────────────────────────────────────────────────────────────────
 
@@ -388,16 +352,13 @@ RUN chmod +x /usr/share/kube-devenv/checks/*.sh \
 LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.terragrunt="${TERRAGRUNT_VERSION}" \
       io.kube-devenv.version.packer="${PACKER_VERSION}" \
-      io.kube-devenv.version.clusterctl="${CLUSTERCTL_VERSION}" \
       io.kube-devenv.version.kubectl="${KUBECTL_VERSION}" \
       io.kube-devenv.version.helm="${HELM_VERSION}" \
       io.kube-devenv.version.sops="${SOPS_VERSION}" \
       io.kube-devenv.version.age="${AGE_VERSION}" \
-      io.kube-devenv.version.openbao="${OPENBAO_VERSION}" \
       io.kube-devenv.version.gh="${GH_VERSION}" \
       io.kube-devenv.version.gitleaks="${GITLEAKS_VERSION}" \
       io.kube-devenv.version.trivy="${TRIVY_VERSION}" \
-      io.kube-devenv.version.cosign="${COSIGN_VERSION}" \
       io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
       io.kube-devenv.version.fzf="${FZF_VERSION}" \

@@ -11,7 +11,6 @@ This product bundles third-party tools. Each retains its own license:
 - age                BSD-3-Clause
 - Gitleaks           MIT
 - Trivy              Apache-2.0
-- cosign             Apache-2.0
 - yamlfmt            Apache-2.0
 - shfmt              BSD-3-Clause
 - pre-commit         MIT
