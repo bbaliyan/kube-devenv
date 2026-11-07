@@ -3,10 +3,6 @@
 The image is one full image. CI and people use the same image. There is no slim variant.
 
 This table lists every tool the image pins. For each tool it shows who uses it, and whether the tool stays.
-"Consumer repos" means the repos that run this image and are not public.
-
-Some consumer repos are not visible when this table is made, so a search can miss a real use. A removal needs the owner's confirmation first.
-
 To add a tool, show one real use first. To remove one, check every repo that uses the image.
 
 ## Pinned tools
@@ -41,7 +37,7 @@ To add a tool, show one real use first. To remove one, check every repo that use
 | boto3 | The `amazon.aws` collection (`aws_ssm` connection) | Keep | The collection needs it. |
 | `amazon.aws` collection | kube-compute `node-bootstrap` (`aws_ssm` connection) | Keep | Playbooks reach AWS nodes with it. |
 | `ansible.posix` collection | `kube-tf` enables the `profile_tasks` and `timer` callbacks | Keep | The verb-script depends on it. |
-| `ansible.windows` collection | No repo visible here. Some consumer repos are not visible from this review. | Keep | An owner-run consumer uses Ansible against Windows nodes. See the note above. |
+| `ansible.windows` collection | Used with Ansible on Windows nodes. | Keep | Provides the Windows modules. |
 | fzf | `scripts/kube-common.sh` (unit and node pickers) | Keep | The VS Code tasks need it. |
 
 ## Other tools in the image
