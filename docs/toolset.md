@@ -5,6 +5,8 @@ The image is one full image. CI and people use the same image. There is no slim 
 This table lists every tool the image pins. For each tool it shows who uses it, and whether the tool stays.
 "Consumer repos" means the repos that run this image and are not public.
 
+Some consumer repos are not visible when this table is made, so a search can miss a real use. A removal needs the owner's confirmation first.
+
 To add a tool, show one real use first. To remove one, check every repo that uses the image.
 
 ## Pinned tools
@@ -27,7 +29,7 @@ To add a tool, show one real use first. To remove one, check every repo that use
 | gitleaks | `checks/secrets.sh` in every repo, through `make test-commit`; each repo's `.gitleaks.toml` points at the shared file | Keep | Part of the commit checks of every repo. |
 | Trivy | kube-compute `make scan` (`trivy config`); `.github/scripts/scan-image.sh` | Keep | Scans IaC and the image. |
 | cosign | Nothing | Remove | No repo or workflow calls it. Image attestations use the GitHub attestation actions. The SBOM check in `NOTICE` runs on the reader's machine. |
-| yamlfmt | Nothing | Remove | No Makefile, workflow or script calls it. |
+| yamlfmt | Nobody calls it from a Makefile, workflow or script. No repo has a `.yamlfmt` config. Only yamllint lints YAML. | Keep | Kept for formatting YAML by hand and for a possible future format check. |
 | shfmt | `CONTRIBUTING.md` tells contributors to run `shfmt -i 2 -ci -d scripts/` | Keep | No Makefile calls it, but this repo documents it as the way to format scripts. It is small. |
 | shellcheck | `make test-commit` in every repo | Keep | Core check. |
 | hadolint | `make lint-dockerfile` in this repo, run in CI inside this image | Keep | The image checks its own Dockerfile with it. |
@@ -39,7 +41,7 @@ To add a tool, show one real use first. To remove one, check every repo that use
 | boto3 | The `amazon.aws` collection (`aws_ssm` connection) | Keep | The collection needs it. |
 | `amazon.aws` collection | kube-compute `node-bootstrap` (`aws_ssm` connection) | Keep | Playbooks reach AWS nodes with it. |
 | `ansible.posix` collection | `kube-tf` enables the `profile_tasks` and `timer` callbacks | Keep | The verb-script depends on it. |
-| `ansible.windows` collection | Nothing | Remove | No playbook in any repo uses a Windows module. |
+| `ansible.windows` collection | No repo visible here. Some consumer repos are not visible from this review. | Keep | An owner-run consumer uses Ansible against Windows nodes. See the note above. |
 | fzf | `scripts/kube-common.sh` (unit and node pickers) | Keep | The VS Code tasks need it. |
 
 ## Other tools in the image
@@ -49,7 +51,7 @@ To add a tool, show one real use first. To remove one, check every repo that use
 | AWS CLI | `kube-*` verb-scripts, kube-compute modules (`aws ssm`, `aws ec2`) | Keep | Core tool. |
 | Session Manager plugin | `kube-shell` and `kube-tail` (`aws ssm start-session`) | Keep | The AWS CLI needs it for these commands. |
 | `nsupdate` (`dnsutils`) | kube-compute `dns-registration` module (local-exec) | Keep | Apply fails without it. |
-| `pre-commit` | `.pre-commit-config.yaml` in this repo only | Remove | No repo calls it from a Makefile or workflow. Repos use `.githooks/pre-commit`, which calls `make`. Its gitleaks hook needs a Go toolchain, which the image does not have. Contributors can install it on their own machine. |
+| `pre-commit` | `.pre-commit-config.yaml` and the devcontainer example in this repo | Keep | The repo config and the example `postCreateCommand` use it. |
 | pyyaml | `tests/check-gitlab-ci.sh` in several repos; kube-platform `Makefile` | Keep | Repo test scripts import `yaml`. |
 | `make`, `git`, `jq`, `curl`, `openssh-client`, `less`, `unzip`, `python3` | Makefiles, scripts, the install steps of this Dockerfile | Keep | Base tools. |
 

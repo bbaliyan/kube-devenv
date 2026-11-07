@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, gh, trivy, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, gh, trivy, yamlfmt, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -61,6 +61,9 @@ ARG GITLEAKS_VERSION=8.30.1
 # renovate: datasource=github-releases depName=aquasecurity/trivy
 ARG TRIVY_VERSION=0.76.1
 
+# renovate: datasource=github-releases depName=google/yamlfmt
+ARG YAMLFMT_VERSION=0.21.0
+
 # renovate: datasource=github-releases depName=mvdan/sh
 ARG SHFMT_VERSION=3.14.1
 
@@ -107,6 +110,9 @@ ARG BOTO3_VERSION=1.43.124
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.1
 
+# renovate: datasource=galaxy-collection depName=ansible.windows
+ARG ANSIBLE_WINDOWS_VERSION=3.9.2
+
 # renovate: datasource=galaxy-collection depName=ansible.posix
 ARG ANSIBLE_POSIX_VERSION=2.2.2
 
@@ -131,9 +137,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# pyyaml. Debian owns the system `packaging` and pip cannot uninstall
+# pre-commit + pyyaml. Debian owns the system `packaging` and pip cannot uninstall
 # it (no RECORD file), so pip installs its own copy beside it instead.
-RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed packaging pyyaml
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed packaging pre-commit pyyaml
 
 # ── OpenTofu ──────────────────────────────────────────────────────────────────
 
@@ -205,6 +211,12 @@ RUN _arch=$([ "${TARGETARCH}" = "amd64" ] && echo "64bit" || echo "ARM64") \
     && curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${_arch}.tar.gz" \
     | tar -xz -C /usr/local/bin trivy \
     && trivy --version
+
+# ── yamlfmt ───────────────────────────────────────────────────────────────────
+
+RUN curl -fsSL "https://github.com/google/yamlfmt/releases/download/v${YAMLFMT_VERSION}/yamlfmt_${YAMLFMT_VERSION}_Linux_$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64").tar.gz" \
+    | tar -xz -C /usr/local/bin yamlfmt \
+    && yamlfmt --version
 
 # ── shfmt ─────────────────────────────────────────────────────────────────────
 
@@ -289,7 +301,7 @@ RUN _pkg=$([ "${TARGETARCH}" = "amd64" ] && echo "ubuntu_64bit" || echo "ubuntu_
 # Terraform local-exec provisioner during `terragrunt apply` — this image is
 # where that apply runs, so ansible-core must be present here or apply fails
 # at the local-exec step with a plain "command not found".
-# boto3 and the amazon.aws and ansible.posix collections are baked in too,
+# boto3 and the amazon.aws and ansible.windows collections are baked in too,
 # so a playbook that reaches AWS nodes over Session Manager (the aws_ssm
 # connection lives in amazon.aws, with session-manager-plugin above as its
 # transport) runs with no install step. ansible.posix adds the profile_tasks
@@ -308,6 +320,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 RUN ansible-galaxy collection install \
     "amazon.aws:==${AMAZON_AWS_VERSION}" \
+    "ansible.windows:==${ANSIBLE_WINDOWS_VERSION}" \
     "ansible.posix:==${ANSIBLE_POSIX_VERSION}" \
     -p /usr/share/ansible/collections \
     && ansible-galaxy collection list
@@ -346,6 +359,7 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.gh="${GH_VERSION}" \
       io.kube-devenv.version.gitleaks="${GITLEAKS_VERSION}" \
       io.kube-devenv.version.trivy="${TRIVY_VERSION}" \
+      io.kube-devenv.version.yamlfmt="${YAMLFMT_VERSION}" \
       io.kube-devenv.version.shfmt="${SHFMT_VERSION}" \
       io.kube-devenv.version.fzf="${FZF_VERSION}" \
       io.kube-devenv.version.shellcheck="${SHELLCHECK_VERSION}" \
@@ -359,6 +373,7 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.ansible-lint="${ANSIBLE_LINT_VERSION}" \
       io.kube-devenv.version.boto3="${BOTO3_VERSION}" \
       io.kube-devenv.version.amazon-aws="${AMAZON_AWS_VERSION}" \
+      io.kube-devenv.version.ansible-windows="${ANSIBLE_WINDOWS_VERSION}" \
       io.kube-devenv.version.ansible-posix="${ANSIBLE_POSIX_VERSION}"
 
 ARG KUBE_DEVENV_VERSION=v0.1.0
