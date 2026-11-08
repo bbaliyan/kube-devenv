@@ -400,20 +400,25 @@ rewrite_kubeconfig() {
 # this probe logic isn't triplicated per-provider.
 rke2_status_probe_script() {
   cat <<'PROBE'
-if systemctl list-unit-files rke2-server.service 2>/dev/null | grep -q rke2-server; then
-  UNIT=rke2-server
-elif systemctl list-unit-files rke2-agent.service 2>/dev/null | grep -q rke2-agent; then
-  UNIT=rke2-agent
-else
-  echo not-started
+# The node image bakes both units and the role is chosen at launch, so use the
+# unit that is running or failed, not the one whose file exists.
+UNIT=""
+for candidate in rke2-server rke2-agent; do
+  if systemctl is-active --quiet "$candidate" || systemctl is-failed --quiet "$candidate"; then
+    UNIT=$candidate
+    break
+  fi
+done
+if [ -z "$UNIT" ]; then
+  if systemctl list-unit-files 'rke2-*.service' 2>/dev/null | grep -Eq 'rke2-(server|agent)'; then
+    echo in-progress
+  else
+    echo not-started
+  fi
   exit 0
 fi
 if systemctl is-failed --quiet "$UNIT"; then
   echo failed
-  exit 0
-fi
-if ! systemctl is-active --quiet "$UNIT"; then
-  echo in-progress
   exit 0
 fi
 if [ "$UNIT" = rke2-server ]; then
