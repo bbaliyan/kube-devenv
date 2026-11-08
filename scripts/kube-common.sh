@@ -388,8 +388,9 @@ rewrite_kubeconfig() {
 # rke2_status_probe_script — echoes a shell script (as a single string) that,
 # run on a node, prints exactly one of: not-started | in-progress | failed |
 # complete. No status file to read (RKE2's own install writes nothing of the
-# sort) — this derives status from the rke2-server/rke2-agent systemd unit
-# RKE2's installer always creates, whichever role this node has. For a server
+# sort) — this derives status from the rke2-server or rke2-agent systemd unit
+# that is running or failed. Node images bake both unit files and pick the
+# role at launch, so a unit file's existence says nothing about the role. For a server
 # node, "complete" additionally requires this node to show Ready in its own
 # `kubectl get node <hostname>` — a unit merely being active only proves the
 # process started, not that it finished joining etcd/the API. An agent node
