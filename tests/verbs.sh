@@ -284,6 +284,35 @@ check "an unknown set is refused" nonzero "unknown set 'bogus'"
 
 grep -q 'select-folder' "$repo/tasks/core.json" && ! grep -rq 'select-cluster\|kube-init\|kube-apply' "$repo/tasks" && ok "the task files use the new names" || bad "the task files use the new names"
 
+# The status probe on a node image that bakes both RKE2 units. A fake systemctl
+# answers from $ACTIVE (running unit) and $UNITS (unit files that exist).
+probe_bin="$work/probe-bin"
+mkdir -p "$probe_bin"
+cat >"$probe_bin/systemctl" <<'STUB'
+#!/usr/bin/env bash
+case "$1" in
+  is-active) [[ " $ACTIVE " == *" ${@: -1} "* ]] ;;
+  is-failed) [[ " ${FAILED:-} " == *" ${@: -1} "* ]] ;;
+  list-unit-files) for u in $UNITS; do echo "$u.service enabled"; done ;;
+esac
+STUB
+cat >"$probe_bin/kubectl" <<'STUB'
+#!/usr/bin/env bash
+echo "node Ready control-plane 1m v1"
+STUB
+chmod +x "$probe_bin/systemctl" "$probe_bin/kubectl"
+probe_script="$(bash -c 'source "$1/scripts/kube-common.sh"; rke2_status_probe_script' _ "$repo")"
+probe() { # expected, ACTIVE, UNITS, FAILED
+  local got
+  got="$(ACTIVE="$2" UNITS="$3" FAILED="${4:-}" PATH="$probe_bin:$PATH" bash -c "$probe_script")"
+  [[ "$got" == "$1" ]] && ok "status probe: $1 ($2|$3|${4:-})" || bad "status probe: wanted $1, got $got ($2|$3|${4:-})"
+}
+probe complete "rke2-agent" "rke2-server rke2-agent"
+probe complete "rke2-server" "rke2-server rke2-agent"
+probe in-progress "" "rke2-server rke2-agent"
+probe not-started "" ""
+probe failed "" "rke2-server rke2-agent" "rke2-agent"
+
 echo
 echo "verbs: ${pass} passed, ${fail} failed"
 [[ "$fail" -eq 0 ]]

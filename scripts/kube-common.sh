@@ -388,8 +388,9 @@ rewrite_kubeconfig() {
 # rke2_status_probe_script — echoes a shell script (as a single string) that,
 # run on a node, prints exactly one of: not-started | in-progress | failed |
 # complete. No status file to read (RKE2's own install writes nothing of the
-# sort) — this derives status from the rke2-server/rke2-agent systemd unit
-# RKE2's installer always creates, whichever role this node has. For a server
+# sort) — this derives status from the rke2-server or rke2-agent systemd unit
+# that is running or failed. Node images bake both unit files and pick the
+# role at launch, so a unit file's existence says nothing about the role. For a server
 # node, "complete" additionally requires this node to show Ready in its own
 # `kubectl get node <hostname>` — a unit merely being active only proves the
 # process started, not that it finished joining etcd/the API. An agent node
@@ -400,20 +401,25 @@ rewrite_kubeconfig() {
 # this probe logic isn't triplicated per-provider.
 rke2_status_probe_script() {
   cat <<'PROBE'
-if systemctl list-unit-files rke2-server.service 2>/dev/null | grep -q rke2-server; then
-  UNIT=rke2-server
-elif systemctl list-unit-files rke2-agent.service 2>/dev/null | grep -q rke2-agent; then
-  UNIT=rke2-agent
-else
-  echo not-started
+# The node image bakes both units and the role is chosen at launch, so use the
+# unit that is running or failed, not the one whose file exists.
+UNIT=""
+for candidate in rke2-server rke2-agent; do
+  if systemctl is-active --quiet "$candidate" || systemctl is-failed --quiet "$candidate"; then
+    UNIT=$candidate
+    break
+  fi
+done
+if [ -z "$UNIT" ]; then
+  if systemctl list-unit-files 'rke2-*.service' 2>/dev/null | grep -Eq 'rke2-(server|agent)'; then
+    echo in-progress
+  else
+    echo not-started
+  fi
   exit 0
 fi
 if systemctl is-failed --quiet "$UNIT"; then
   echo failed
-  exit 0
-fi
-if ! systemctl is-active --quiet "$UNIT"; then
-  echo in-progress
   exit 0
 fi
 if [ "$UNIT" = rke2-server ]; then
