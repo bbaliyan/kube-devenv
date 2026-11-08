@@ -59,7 +59,7 @@ ARG GH_VERSION=2.103.3
 ARG GITLEAKS_VERSION=8.30.1
 
 # renovate: datasource=github-releases depName=aquasecurity/trivy
-ARG TRIVY_VERSION=0.76.1
+ARG TRIVY_VERSION=0.76.2
 
 # renovate: datasource=github-releases depName=google/yamlfmt
 ARG YAMLFMT_VERSION=0.21.0
