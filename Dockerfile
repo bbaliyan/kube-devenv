@@ -78,7 +78,7 @@ ARG KUBECONFORM_VERSION=0.8.0
 
 # promtool ships inside the Prometheus release tarball.
 # renovate: datasource=github-releases depName=prometheus/prometheus
-ARG PROMETHEUS_VERSION=3.15.1
+ARG PROMETHEUS_VERSION=3.16.0
 
 # renovate: datasource=github-releases depName=helm/chart-testing
 ARG CHART_TESTING_VERSION=3.15.0
