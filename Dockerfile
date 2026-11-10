@@ -105,7 +105,7 @@ ARG ANSIBLE_LINT_VERSION=26.11.0
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.43.126
+ARG BOTO3_VERSION=1.43.127
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.1
