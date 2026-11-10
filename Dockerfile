@@ -228,7 +228,7 @@ RUN curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/
 # ── fzf ───────────────────────────────────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=junegunn/fzf
-ARG FZF_VERSION=0.74.5
+ARG FZF_VERSION=0.75.0
 
 RUN curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${TARGETARCH}.tar.gz" \
     | tar -xz -C /usr/local/bin fzf \
