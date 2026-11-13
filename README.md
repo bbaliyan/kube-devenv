@@ -142,7 +142,7 @@ reaches every repo when it bumps the image pin.
 
 | Script | What it does |
 |---|---|
-| `secrets.sh [dir]` | Runs gitleaks with the default rules plus `gitleaks.toml`: AWS account IDs and internal URL shapes. A repo with its own `.gitleaks.toml` should `[extend]` the shared file to add its allowlist. |
+| `secrets.sh [dir] [base-ref]` | Runs gitleaks with the default rules plus `gitleaks.toml`: AWS account IDs and internal URL shapes. With a base ref (a pull request), it scans only `<base-ref>..HEAD`, so a bad commit on another branch cannot fail the check. Without one, it scans the full history of HEAD, never all refs. `make secrets BASE_REF=origin/main` passes the base ref. A repo with its own `.gitleaks.toml` should `[extend]` the shared file to add its allowlist. |
 | `commit-messages.sh <base-ref>` | Fails on a missing `Signed-off-by` (set `REQUIRE_SIGNOFF=0` to turn that off) and on `Co-Authored-By` or `Generated with` lines. A `Co-authored-by` line for a GitHub App (`name[bot] <id+name[bot]@users.noreply.github.com>`), which GitHub adds on a squash merge of a Renovate PR, passes. Skips when there is no base commit. |
 | `helm-kubeconform.sh [dir]` | Runs `helm lint` and `helm template` for every chart, then validates the output with kubeconform and a CRD schema catalog. Set `MANIFEST_DIRS` to check plain manifest folders too. |
 | `pipeline-lint.sh [dir]` | Fails when a GitHub workflow or GitLab file runs a check itself. Pipeline files may only call `make`. List exceptions in `.pipelinelintignore`. |
