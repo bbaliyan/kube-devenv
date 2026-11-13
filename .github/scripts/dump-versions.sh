@@ -30,6 +30,8 @@ row "sops" sops --version
 row "age" age --version
 row "gitleaks" gitleaks version
 row "trivy" trivy --version
+row "tflint" tflint --version
+row "terraform-docs" terraform-docs --version
 row "yamlfmt" yamlfmt --version
 row "shfmt" shfmt --version
 row "fzf" fzf --version

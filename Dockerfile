@@ -6,7 +6,7 @@
 FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/bbaliyan/kube-devenv"
-LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, gh, trivy, yamlfmt, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, with shared check scripts)"
+LABEL org.opencontainers.image.description="Operator toolchain image for the kube-compute platform (tofu, terragrunt, kubectl, helm, aws, sops, age, gh, trivy, yamlfmt, fzf, session-manager-plugin, ansible-core with ansible-lint, boto3 and the amazon.aws, ansible.windows and ansible.posix collections, make, and the commit-tier linters shellcheck, hadolint, kubeconform, yamllint, promtool, chart-testing and helm-unittest, tflint with the AWS ruleset, terraform-docs, with shared check scripts)"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
@@ -85,6 +85,17 @@ ARG CHART_TESTING_VERSION=3.15.0
 
 # renovate: datasource=github-releases depName=helm-unittest/helm-unittest
 ARG HELM_UNITTEST_VERSION=1.2.1
+
+# renovate: datasource=github-releases depName=terraform-linters/tflint
+ARG TFLINT_VERSION=0.66.0
+
+# The AWS ruleset is baked in so `tflint` needs no `tflint --init` and no
+# download from GitHub at run time.
+# renovate: datasource=github-releases depName=terraform-linters/tflint-ruleset-aws
+ARG TFLINT_RULESET_AWS_VERSION=0.50.0
+
+# renovate: datasource=github-releases depName=terraform-docs/terraform-docs
+ARG TERRAFORM_DOCS_VERSION=0.25.1
 
 # renovate: datasource=pypi depName=yamllint
 ARG YAMLLINT_VERSION=1.38.0
@@ -276,6 +287,28 @@ ENV HELM_PLUGINS=/usr/share/helm/plugins
 RUN helm plugin install https://github.com/helm-unittest/helm-unittest --version "v${HELM_UNITTEST_VERSION}" --verify=false \
     && helm unittest --help >/dev/null
 
+# ── tflint and terraform-docs ─────────────────────────────────────────────────
+# tflint looks for plugins in TFLINT_PLUGIN_DIR, so a system path lets any user
+# find the AWS ruleset. A .tflint.hcl that enables the plugin without `source`
+# and `version` uses this baked copy.
+
+ENV TFLINT_PLUGIN_DIR=/usr/share/tflint/plugins
+RUN mkdir -p "${TFLINT_PLUGIN_DIR}" \
+    && curl -fsSL "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_${TARGETARCH}.zip" \
+       -o /tmp/tflint.zip \
+    && unzip -q /tmp/tflint.zip -d /usr/local/bin tflint \
+    && rm /tmp/tflint.zip \
+    && curl -fsSL "https://github.com/terraform-linters/tflint-ruleset-aws/releases/download/v${TFLINT_RULESET_AWS_VERSION}/tflint-ruleset-aws_linux_${TARGETARCH}.zip" \
+       -o /tmp/tflint-ruleset-aws.zip \
+    && unzip -q /tmp/tflint-ruleset-aws.zip -d "${TFLINT_PLUGIN_DIR}" tflint-ruleset-aws \
+    && rm /tmp/tflint-ruleset-aws.zip \
+    && chmod 755 /usr/local/bin/tflint "${TFLINT_PLUGIN_DIR}/tflint-ruleset-aws" \
+    && tflint --version
+
+RUN curl -fsSL "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin terraform-docs \
+    && terraform-docs --version
+
 # ── AWS CLI v2 ────────────────────────────────────────────────────────────────
 # AWS uses "x86_64" on amd64 and "aarch64" on arm64.
 
@@ -368,6 +401,9 @@ LABEL io.kube-devenv.version.tofu="${TOFU_VERSION}" \
       io.kube-devenv.version.promtool="${PROMETHEUS_VERSION}" \
       io.kube-devenv.version.chart-testing="${CHART_TESTING_VERSION}" \
       io.kube-devenv.version.helm-unittest="${HELM_UNITTEST_VERSION}" \
+      io.kube-devenv.version.tflint="${TFLINT_VERSION}" \
+      io.kube-devenv.version.tflint-ruleset-aws="${TFLINT_RULESET_AWS_VERSION}" \
+      io.kube-devenv.version.terraform-docs="${TERRAFORM_DOCS_VERSION}" \
       io.kube-devenv.version.yamllint="${YAMLLINT_VERSION}" \
       io.kube-devenv.version.ansible-core="${ANSIBLE_CORE_VERSION}" \
       io.kube-devenv.version.ansible-lint="${ANSIBLE_LINT_VERSION}" \

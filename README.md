@@ -126,10 +126,38 @@ wrapper around a plain CLI command. In a pipeline, call `kube-tf` directly. See
 | `trivy` | IaC misconfiguration + image vulnerability scanning |
 | `yamlfmt` `shfmt` | Formatting linters |
 | `shellcheck` `hadolint` `yamllint` | Shell, Dockerfile and YAML linters |
+| `tflint` | Terraform linter, with the AWS ruleset baked in (see [tflint](#tflint-and-terraform-docs)) |
+| `terraform-docs` | Writes and checks the input and output tables in a module README |
 | `kubeconform` `promtool` | Kubernetes manifest schema check, Prometheus rule check |
 | `ct` `helm unittest` | Helm chart lint and unit tests |
 | `pre-commit` `python3` `pyyaml` | Pre-commit framework + YAML parsing |
 | `kube-*` verb-scripts | Provider-agnostic cluster operations — see [scripts/README.md](scripts/README.md) |
+
+### tflint and terraform-docs
+
+The AWS ruleset of tflint is part of the image. It lives in `/usr/share/tflint/plugins`
+(`TFLINT_PLUGIN_DIR`), so any user can read it and `tflint --init` is not needed.
+
+To use it, add a `.tflint.hcl` to the repo:
+
+```hcl
+plugin "aws" {
+  enabled = true
+}
+```
+
+Then run `tflint --chdir <module>`. Do not set `source` or `version` in the block.
+If you do, tflint expects an installed plugin and asks for `tflint --init`, which
+downloads from GitHub.
+
+To keep the input and output tables of a module README current, put the markers
+`<!-- BEGIN_TF_DOCS -->` and `<!-- END_TF_DOCS -->` in the README. Then run:
+
+```bash
+terraform-docs markdown table --output-file README.md --output-mode inject <module>
+```
+
+To fail when a table is stale, add `--output-check`.
 
 All versions are pinned in the `Dockerfile` via Renovate-managed `ARG` annotations and
 update automatically via PR.
@@ -191,7 +219,7 @@ Every tagged release (`ghcr.io/bbaliyan/kube-devenv:vX.Y.Z`) gets:
   fails when an entry has no date or the date has passed.
 - **A dependency version matrix**, in two places: the tool versions Renovate pins via
   Dockerfile `ARG`s (`tofu`, `terragrunt`, `kubectl`, `helm`, `sops`, `age`,
-  `gitleaks`, `trivy`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
+  `gitleaks`, `trivy`, `tflint`, its AWS ruleset, `terraform-docs`, `yamlfmt`, `shfmt`, `fzf`, `ansible-core`,
   `ansible-lint`, `boto3`, and the `amazon.aws`, `ansible.windows` and `ansible.posix`
   collections) are baked in as OCI labels (`io.kube-devenv.version.*`) — read them offline with
   `docker inspect ghcr.io/bbaliyan/kube-devenv:vX.Y.Z` or
