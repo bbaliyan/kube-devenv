@@ -244,6 +244,40 @@ paths = ['''docs\.md''']
 TOML
   git -C "$repo" add . && git -C "$repo" commit -q -m "init"
   expect "secrets: a spoke allowlist that extends the shared config passes" 0 "$se" "$repo"
+
+  # Build the fake account ID at run time so no literal reaches a scanner.
+  leak="role = \"arn:aws:iam::$(printf '%s' 1234 5678 9012 | tr -d ' '):role/x\""
+
+  repo="$(new_repo se-other-branch)"
+  echo "hello" >"$repo/README.md"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "init"
+  git -C "$repo" checkout -q -b leaky
+  echo "$leak" >"$repo/main.tf"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "leak"
+  git -C "$repo" checkout -q -b pr main
+  echo "ok" >"$repo/b.md"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "clean change"
+  expect "secrets: a leak on another branch does not fail a PR range" 0 "$se" "$repo" main
+  expect "secrets: a leak on another branch does not fail a full HEAD scan" 0 "$se" "$repo"
+
+  repo="$(new_repo se-range)"
+  echo "hello" >"$repo/README.md"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "init"
+  echo "$leak" >"$repo/main.tf"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "leak"
+  git -C "$repo" rm -q main.tf && git -C "$repo" commit -q -m "remove"
+  expect "secrets: a leak in the PR range fails, even if a later commit removes it" 1 "$se" "$repo" HEAD~2
+  expect "secrets: a clean range passes" 0 "$se" "$repo" HEAD
+  expect "secrets: a leak in history fails a full HEAD scan" 1 "$se" "$repo"
+  expect "secrets: an unknown base ref fails" 1 "$se" "$repo" no-such-ref
+
+  repo="$(new_repo se-wt)"
+  echo "hello" >"$repo/README.md"
+  git -C "$repo" add . && git -C "$repo" commit -q -m "init"
+  git -C "$repo" worktree add -q "$work/se-wt-tree" -b wt
+  echo "$leak" >"$work/se-wt-tree/main.tf"
+  git -C "$work/se-wt-tree" add . && git -C "$work/se-wt-tree" commit -q -m "leak"
+  expect "secrets: a worktree (.git is a file) scans its history" 1 "$se" "$work/se-wt-tree" main
 else
   skip "secrets: rules" gitleaks
 fi

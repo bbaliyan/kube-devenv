@@ -15,7 +15,7 @@ lint-dockerfile:
 	hadolint Dockerfile
 
 secrets:
-	checks/secrets.sh .
+	checks/secrets.sh . "$(BASE_REF)"
 
 pipeline-lint:
 	checks/pipeline-lint.sh .
