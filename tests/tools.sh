@@ -169,6 +169,49 @@ job "packer validates a template" 0 packer validate "$work/demo.pkr.hcl"
 printf 'source "null" "demo" {\n  nonsense = true\n}\nbuild {\n  sources = ["source.null.demo"]\n}\n' >"$work/bad.pkr.hcl"
 job "packer fails an invalid template" nonzero packer validate "$work/bad.pkr.hcl"
 
+# ---- tflint and terraform-docs: the module checks of kube-compute ------------------------
+
+mkdir -p "$work/tfmod"
+cat >"$work/tfmod/main.tf" <<'HCL'
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+  }
+}
+
+variable "name" {
+  type        = string
+  description = "Name of the thing."
+}
+
+resource "aws_instance" "good" {
+  ami           = "ami-0123456789abcdef0"
+  instance_type = "t3.micro"
+  tags          = { Name = var.name }
+}
+HCL
+printf 'plugin "aws" {
+  enabled = true
+}
+' >"$work/tfmod/.tflint.hcl"
+job "tflint passes a module with the baked AWS ruleset" 0 tflint --chdir "$work/tfmod"
+sed 's/t3.micro/t3.nonexistent/' "$work/tfmod/main.tf" >"$work/tfmod/bad.tf"
+job "tflint fails an invalid instance type" 0 bash -c "tflint --chdir '$work/tfmod' | grep -q aws_instance_invalid_type"
+rm "$work/tfmod/bad.tf"
+
+printf '# demo
+
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->
+' >"$work/tfmod/README.md"
+job "terraform-docs fails on a stale table" nonzero terraform-docs markdown table --output-file README.md --output-mode inject --output-check "$work/tfmod"
+job "terraform-docs injects the tables" 0 terraform-docs markdown table --output-file README.md --output-mode inject "$work/tfmod"
+job "terraform-docs passes on a current table" 0 terraform-docs markdown table --output-file README.md --output-mode inject --output-check "$work/tfmod"
+
 # ---- kubectl: reads a kubeconfig without a cluster ------------------------------------
 
 cat >"$work/kubeconfig" <<'YAML'

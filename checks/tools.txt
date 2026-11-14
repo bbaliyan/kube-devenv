@@ -26,3 +26,5 @@ pre-commit|pre-commit --version
 nsupdate|nsupdate -V
 jq|jq --version
 make|make --version
+tflint|tflint --version
+terraform-docs|terraform-docs --version

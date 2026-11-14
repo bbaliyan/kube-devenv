@@ -11,6 +11,9 @@ To add a tool, show one real use first. To remove one, check every repo that use
 |---|---|---|---|
 | OpenTofu (`tofu`) | kube-compute `make test-commit` (fmt, validate, test); kube-images `make test-commit` (fmt, validate); `kube-tf` | Keep | Core tool. |
 | Terragrunt | `kube-tf` and the verb-scripts in this repo; consumer repos | Keep | Core tool. |
+| tflint | Planned: kube-compute `make test-commit` | Keep | Lints Terraform modules. Added for the module checks that need it. |
+| tflint AWS ruleset (`tflint-ruleset-aws`) | tflint, enabled in a repo's `.tflint.hcl` | Keep | Catches AWS errors that `tofu validate` misses, such as an invalid instance type. Baked in, so `tflint` needs no download at run time. |
+| terraform-docs | Planned: kube-compute check that module README tables match the code | Keep | Writes the input and output tables of a module README, and checks that they are current. |
 | Packer | kube-images `make test-commit` (`packer fmt`, `packer init`, `packer validate`) | Keep | Bakes the machine images. |
 | clusterctl | Nothing | Remove | No repo calls it any more. kube-images no longer renders Cluster API manifests at bake time. |
 | kubectl | kube-platform, kube-ci-workload, opnsense-observability-check (cluster jobs); `kube-kubeconfig`, `kube-secrets` | Keep | Core tool. |
