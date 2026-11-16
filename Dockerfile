@@ -44,7 +44,7 @@ ARG PACKER_VERSION=1.16.2
 ARG KUBECTL_VERSION=1.37.2
 
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=4.3.1
+ARG HELM_VERSION=4.3.2
 
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION=3.13.3
