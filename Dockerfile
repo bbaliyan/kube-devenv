@@ -53,7 +53,7 @@ ARG SOPS_VERSION=3.13.3
 ARG AGE_VERSION=1.3.2
 
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION=2.103.3
+ARG GH_VERSION=2.104.0
 
 # renovate: datasource=github-releases depName=gitleaks/gitleaks
 ARG GITLEAKS_VERSION=8.30.1
