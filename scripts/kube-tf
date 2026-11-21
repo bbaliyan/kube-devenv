@@ -76,8 +76,7 @@ stale_stack_units() {
     echo "Error: cannot create a scratch folder next to $(pwd)." >&2
     return 1
   }
-  [[ -n "${PROBE}" && -d "${PROBE}" ]] || return 1
-  trap '[[ -n "${PROBE:-}" ]] && rm -rf "${PROBE}"; [[ -n "${PROBE_LOG:-}" ]] && rm -f "${PROBE_LOG}"' EXIT
+  trap 'rm -rf "${PROBE}"; rm -f "${PROBE_LOG}"' EXIT
   find . -mindepth 1 -maxdepth 1 -not -name .terragrunt-stack -not -name .terragrunt-cache \
     -not -name .terraform -exec cp -R {} "${PROBE}/" \;
   # Drop the generated folders that the copy brought along: generate must make them again.
@@ -95,22 +94,16 @@ stale_stack_units() {
 if [[ "${MODE}" == stack ]]; then
   STALE=$(stale_stack_units) || exit 1
   if [[ -n "${STALE}" && "${VERB}" == destroy ]]; then
-    echo "Notice: ${STALE//$'
-'/, } are no longer in the stack file. This destroy will destroy them too." >&2
+    echo "Notice: ${STALE//$'\n'/, } are no longer in the stack file. This destroy will destroy them too." >&2
   elif [[ -n "${STALE}" ]]; then
     echo "Error: these generated unit folders are no longer in the stack file:" >&2
     sed 's/^/  /' <<<"${STALE}" >&2
     cat >&2 <<'MSG'
 
-A stack run would run them too. Do not run a clean yet: it deletes every generated
-folder at once, and a deleted folder can no longer reach its state.
-Do these steps:
-  1. In EACH folder above, run `terragrunt state list`. If it fails because the unit
-     was never initialised, run `terragrunt init` there first. If the unit has no state,
-     treat the list as empty.
-  2. In each folder whose list shows resources, run `terragrunt destroy` while the folder exists.
-  3. After you have handled ALL the folders, run ONE `terragrunt stack clean` in the stack
-     folder (it does nothing inside a unit folder).
+A stack run would run them too. A clean deletes every generated folder, so check them first.
+  1. In each folder above, run `terragrunt state list`.
+  2. If a folder lists resources, run `terragrunt destroy` in that folder.
+  3. When no folder lists resources, run `terragrunt stack clean` in the stack folder.
 MSG
     exit 1
   fi
