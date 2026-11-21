@@ -137,7 +137,8 @@ generate_now
 top_stack a b d
 stale_run plan
 stale_expect "stale check: a removed unit stops plan and is listed" nonzero "^  \.terragrunt-stack/c$" "terragrunt-stack/(a|b|d)$"
-stale_expect "stale check: the message gives the steps" nonzero "terragrunt state list" ""
+stale_expect "stale check: the message says what to do when state list fails" nonzero "terragrunt state list.. If it fails, run .kube-tf init. there" ""
+(cd "$stale/.terragrunt-stack/c" && WORKSPACE_FOLDER="$lab" PATH="$repo/scripts:$PATH" kube-tf init >/dev/null 2>&1) && ok "stale check: kube-tf init works inside an extra unit folder" || bad "stale check: kube-tf init works inside an extra unit folder"
 stack_dir_exists .terragrunt-stack/c && ok "stale check: it deletes nothing" || bad "stale check: it deletes nothing"
 no_probe_left && ok "stale check: it leaves no scratch folder" || bad "stale check: it leaves no scratch folder"
 stale_run init
@@ -152,10 +153,12 @@ top_stack a b c
 generate_now
 top_stack a
 stale_run plan
-stale_expect "stale check: with several extra folders, the text lists each and says one clean after all" nonzero "^  \.terragrunt-stack/b$" ""
-stale_expect "stale check: the text lists the second extra folder too" nonzero "^  \.terragrunt-stack/c$" ""
+stale_expect "stale check: with several extra folders, the first is listed" nonzero "^  \.terragrunt-stack/b$" ""
+stale_expect "stale check: the second extra folder is listed too" nonzero "^  \.terragrunt-stack/c$" ""
 stale_expect "stale check: the text says to destroy" nonzero "terragrunt destroy" ""
-stale_expect "stale check: the text says to clean from the stack folder" nonzero "terragrunt stack clean. in the stack folder" ""
+stale_expect "stale check: the clean is conditional and runs in the stack folder only" nonzero "When no folder lists resources, run .terragrunt stack clean. in the stack folder" "each unit folder"
+stale_run destroy
+stale_expect "stale check: destroy with two extra folders names both, comma-separated, and says it destroys them" 0 "Notice: \.terragrunt-stack/b, \.terragrunt-stack/c are no longer.*destroy them too" ""
 
 fresh
 { units_hcl a; nodot_unit n; } >"$stale/terragrunt.stack.hcl"

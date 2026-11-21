@@ -130,8 +130,12 @@ If `kube-tf` stops, do these steps:
 
 Details:
 
-- If `state list` fails because the unit was never initialised, run `terragrunt init` in the
-  folder first. Or treat the list as empty.
+- If `state list` fails, the unit was probably never initialised. Run `kube-tf init` in the
+  folder, then run `state list` again. Treat the list as empty only when `state list`
+  succeeds and prints nothing. `kube-tf init` in a unit folder runs `terragrunt init` with
+  `--backend-bootstrap`.
+- If one listed folder depends on another, destroy the dependent folder first. A destroy
+  that gets stuck leaks nothing as long as you do not run the clean.
 - A clean deletes every generated folder at once. A deleted folder can no longer reach its
   state, so its resources would stay in the cloud.
 - Run `terragrunt stack clean` in the stack folder. It does nothing inside a unit folder.

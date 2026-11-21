@@ -101,7 +101,7 @@ if [[ "${MODE}" == stack ]]; then
     cat >&2 <<'MSG'
 
 A stack run would run them too. A clean deletes every generated folder, so check them first.
-  1. In each folder above, run `terragrunt state list`.
+  1. In each folder above, run `terragrunt state list`. If it fails, run `kube-tf init` there, then run it again.
   2. If a folder lists resources, run `terragrunt destroy` in that folder.
   3. When no folder lists resources, run `terragrunt stack clean` in the stack folder.
 MSG
