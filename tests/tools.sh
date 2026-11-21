@@ -74,6 +74,17 @@ units_hcl() {
   done
 }
 inner_block() { printf 'stack "inner" {\n  source = "${get_repo_root()}/stacks/inner"\n  path = "inner"\n}\n'; }
+nodot_unit() {
+  printf 'unit "%s" {
+  source = "${get_repo_root()}/units/demo"
+  path = "%s"
+  no_dot_terragrunt_stack = true
+  values = {
+    region = "test-region-1"
+  }
+}
+' "$1" "$1"
+}
 top_stack() { units_hcl "$@" >"$stale/terragrunt.stack.hcl"; }
 top_stack_with_inner() { { units_hcl "$@"; inner_block; } >"$stale/terragrunt.stack.hcl"; }
 inner_stack() { units_hcl "$@" >"$lab/stacks/inner/terragrunt.stack.hcl"; }
@@ -126,7 +137,7 @@ generate_now
 top_stack a b d
 stale_run plan
 stale_expect "stale check: a removed unit stops plan and is listed" nonzero "^  \.terragrunt-stack/c$" "terragrunt-stack/(a|b|d)$"
-stale_expect "stale check: the message gives the steps" nonzero "1\. Run .terragrunt state list. in the folder" ""
+stale_expect "stale check: the message gives the steps" nonzero "1\. In EACH folder above, run .terragrunt state list." ""
 stack_dir_exists .terragrunt-stack/c && ok "stale check: it deletes nothing" || bad "stale check: it deletes nothing"
 no_probe_left && ok "stale check: it leaves no scratch folder" || bad "stale check: it leaves no scratch folder"
 stale_run init
@@ -135,6 +146,42 @@ stale_run apply
 stale_expect "stale check: apply stops before it asks for the confirmation" nonzero "^  \.terragrunt-stack/c$" "Type '"
 stale_run destroy
 stale_expect "stale check: destroy goes on and says it will destroy the extra folder" 0 "Notice: .*terragrunt-stack/c are no longer in the stack file" ""
+
+fresh
+top_stack a b c
+generate_now
+top_stack a
+stale_run plan
+stale_expect "stale check: with several extra folders, the text lists each and says one clean after all" nonzero "^  \.terragrunt-stack/b$" ""
+stale_expect "stale check: the text lists the second extra folder too" nonzero "^  \.terragrunt-stack/c$" ""
+stale_expect "stale check: the text says to destroy first and clean once after all folders" nonzero "ONE .terragrunt stack clean. in the stack" "run .terragrunt stack clean. in the unit"
+
+fresh
+{ units_hcl a; nodot_unit n; } >"$stale/terragrunt.stack.hcl"
+generate_now
+stack_dir_exists n && ok "stale check: a no_dot_terragrunt_stack unit is generated outside .terragrunt-stack" || bad "stale check: a no_dot_terragrunt_stack unit is generated outside .terragrunt-stack"
+mkdir -p "$stale/committed"
+printf 'terraform {
+  source = "${get_repo_root()}/modules/demo"
+}
+inputs = {
+  region = "test-region-1"
+}
+' >"$stale/committed/terragrunt.hcl"
+stale_run plan
+stale_expect "stale check: a no_dot unit that is still defined, and a committed unit, pass" 0 "" "no longer in the stack file"
+top_stack a
+stale_run plan
+stale_expect "stale check: a removed no_dot_terragrunt_stack unit is caught" nonzero "^  n$" "committed|terragrunt-stack/a"
+rm -rf "$stale/n" "$stale/committed"
+
+TMP_BAD=$(cd "$stale" && printf 'aws/stale
+' | TMPDIR=/nonexistent-dir WORKSPACE_FOLDER="$lab" PATH="$repo/scripts:$PATH" kube-tf plan 2>&1)
+RC=$?
+OUT="$TMP_BAD"
+fresh
+stale_expect "stale check: a scratch file that cannot be made stops the run before anything is copied or run" nonzero "cannot create a scratch file" "Generating|terragrunt-stack"
+[[ ! -e /terragrunt.stack.hcl ]] && ok "stale check: nothing is copied to the root folder" || bad "stale check: nothing is copied to the root folder"
 
 fresh
 top_stack a b c

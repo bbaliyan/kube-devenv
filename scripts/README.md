@@ -116,20 +116,32 @@ a unit that you removed from the file or moved. A stack run then runs that old f
 That can create a second copy of a resource next to the first.
 
 In a stack folder, `kube-tf init`, `plan` and `apply` compare first. They generate the
-stack in a scratch copy and compare its unit folders with the ones in `.terragrunt-stack`.
-This covers nested stacks. If a folder on disk is extra, the command stops with exit code 1
-and lists each extra folder. It deletes nothing. A unit that is defined but not yet
-generated is not a problem.
+stack in a scratch copy and compare its generated unit folders with the ones on disk.
+This covers nested stacks and units made with `no_dot_terragrunt_stack`. A unit that you
+committed is not generated and is never listed. If a generated folder on disk is extra,
+the command stops with exit code 1 and lists each extra folder. It deletes nothing. A unit
+that is defined but not yet generated is not a problem.
 
-If `kube-tf` stops, do these steps for each extra folder:
+If `kube-tf` stops, do these steps:
 
-1. In the folder, run `terragrunt state list`.
-2. If the list is empty, run `terragrunt stack clean`.
-3. If the list shows resources, run `terragrunt destroy` in that folder. Then run
-   `terragrunt stack clean`.
+1. In each listed folder, run `terragrunt state list`. If it fails because the unit was
+   never initialised, run `terragrunt init` there first. If the unit has no state, treat
+   the list as empty.
+2. In each folder whose list shows resources, run `terragrunt destroy` while the folder
+   still exists.
+3. After you have handled all the listed folders, run one `terragrunt stack clean` in the
+   stack folder. It does nothing inside a unit folder.
 
-`kube-tf` does not clean for you. A clean before the destroy would remove the folder that
-holds the unit's state link, and its resources would stay in the cloud.
+A clean deletes every generated folder at once. Run it only after step 2 is done for all
+folders. A deleted folder can no longer reach its state, and its resources would stay in
+the cloud. `kube-tf` never cleans for you.
 
 `kube-tf destroy` does not stop. It must reach every unit on disk. It prints one line that
 names the extra folders and says it will destroy them too.
+
+Known limits:
+
+- The scratch copy is a temporary sibling folder with another name. It is removed when the
+  script ends. If a unit `path` uses the name of the stack folder, the check can list a
+  folder that is not extra.
+- Terragrunt fetches a remote source twice, once for the copy and once for the run.

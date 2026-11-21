@@ -51,24 +51,37 @@ fi
 # ANSIBLE_CALLBACKS_ENABLED keeps their own value.
 export ANSIBLE_CALLBACKS_ENABLED="${ANSIBLE_CALLBACKS_ENABLED:-timer,profile_tasks}"
 
-# unit_folders <dir>: the generated unit folders below <dir>/.terragrunt-stack, sorted.
-# Nested stacks are covered: their units sit deeper in the same tree.
+# unit_folders <dir>: the folders below <dir> that Terragrunt generated as units, sorted.
+# A generated folder holds a terragrunt.hcl and a .terragrunt-stack-manifest. This also
+# finds units that sit outside .terragrunt-stack (no_dot_terragrunt_stack) and units of
+# nested stacks. A unit that you committed has no manifest and is not listed.
 unit_folders() {
-  [[ -d "$1/.terragrunt-stack" ]] || return 0
-  (cd "$1" && find .terragrunt-stack \( -name .terragrunt-cache -o -name .terraform \) -prune \
+  local d
+  while IFS= read -r d; do
+    [[ -f "${d}/.terragrunt-stack-manifest" ]] && echo "${d#./}"
+  done < <(cd "$1" && find . \( -name .terragrunt-cache -o -name .terraform -o -name .git \) -prune \
     -o -name terragrunt.hcl -printf '%h\n') | LC_ALL=C sort
 }
 
 # stale_stack_units: print the generated unit folders that the stack file no longer
-# defines. The scratch copy is a sibling folder, so relative sources in the stack file
-# resolve the same way. A generate error stops the script with the real error.
+# defines. It generates the stack in a scratch copy and compares the two. The copy is a
+# sibling folder, so relative sources in the stack file resolve the same way. It has
+# another name, so a unit path that uses the stack folder's name differs. A generate
+# error stops the script with the real error.
 stale_stack_units() {
   local status=0
-  PROBE=$(mktemp -d "$(pwd)/../.kube-tf-probe.XXXXXX")
-  PROBE_LOG=$(mktemp)
-  trap 'rm -rf "${PROBE}" "${PROBE_LOG}"' EXIT
+  PROBE_LOG=$(mktemp) || { echo "Error: cannot create a scratch file." >&2; return 1; }
+  PROBE=$(mktemp -d "$(pwd)/../.kube-tf-probe.XXXXXX") || {
+    rm -f "${PROBE_LOG}"
+    echo "Error: cannot create a scratch folder next to $(pwd)." >&2
+    return 1
+  }
+  [[ -n "${PROBE}" && -d "${PROBE}" ]] || return 1
+  trap '[[ -n "${PROBE:-}" ]] && rm -rf "${PROBE}"; [[ -n "${PROBE_LOG:-}" ]] && rm -f "${PROBE_LOG}"' EXIT
   find . -mindepth 1 -maxdepth 1 -not -name .terragrunt-stack -not -name .terragrunt-cache \
     -not -name .terraform -exec cp -R {} "${PROBE}/" \;
+  # Drop the generated folders that the copy brought along: generate must make them again.
+  find "${PROBE}" -name .terragrunt-stack-manifest -printf '%h\0' | xargs -0 -r rm -rf
   if (cd "${PROBE}" && terragrunt stack generate --non-interactive) >"${PROBE_LOG}" 2>&1; then
     comm -13 <(unit_folders "${PROBE}") <(unit_folders .) || status=$?
   else
@@ -89,11 +102,15 @@ if [[ "${MODE}" == stack ]]; then
     sed 's/^/  /' <<<"${STALE}" >&2
     cat >&2 <<'MSG'
 
-A stack run would run them too. Do not delete them yet: their state may still hold resources.
-For each folder above:
-  1. Run `terragrunt state list` in the folder.
-  2. If the list is empty, run `terragrunt stack clean`.
-  3. If the list shows resources, run `terragrunt destroy` in that folder. Then run `terragrunt stack clean`.
+A stack run would run them too. Do not run a clean yet: it deletes every generated
+folder at once, and a deleted folder can no longer reach its state.
+Do these steps:
+  1. In EACH folder above, run `terragrunt state list`. If it fails because the unit
+     was never initialised, run `terragrunt init` there first. If the unit has no state,
+     treat the list as empty.
+  2. In each folder whose list shows resources, run `terragrunt destroy` while the folder exists.
+  3. After you have handled ALL the folders, run ONE `terragrunt stack clean` in the stack
+     folder (it does nothing inside a unit folder).
 MSG
     exit 1
   fi
