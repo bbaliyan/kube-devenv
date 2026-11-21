@@ -124,17 +124,31 @@ that is defined but not yet generated is not a problem.
 
 If `kube-tf` stops, do these steps:
 
-1. In each listed folder, run `terragrunt state list`. If it fails because the unit was
-   never initialised, run `terragrunt init` there first. If the unit has no state, treat
-   the list as empty.
-2. In each folder whose list shows resources, run `terragrunt destroy` while the folder
-   still exists.
-3. After you have handled all the listed folders, run one `terragrunt stack clean` in the
-   stack folder. It does nothing inside a unit folder.
+1. In each listed folder, run `terragrunt state list`.
+2. If it fails, do not run the clean. Fix the error first (see below).
+3. If a folder lists resources, run `terragrunt destroy` in that folder.
+4. When every folder lists no resources, run `terragrunt stack clean` in the stack folder.
 
-A clean deletes every generated folder at once. Run it only after step 2 is done for all
-folders. A deleted folder can no longer reach its state, and its resources would stay in
-the cloud. `kube-tf` never cleans for you.
+Details:
+
+- A clean deletes every generated folder at once. A deleted folder can no longer reach its
+  state, so its resources would stay in the cloud.
+- Run `terragrunt stack clean` in the stack folder. It does nothing inside a unit folder.
+- Treat a list as empty only when `state list` succeeds and prints nothing.
+- `kube-tf` never cleans for you.
+- If one listed folder depends on another, destroy the dependent folder first. A destroy
+  that gets stuck leaks nothing as long as you do not run the clean.
+
+If `state list` fails, a common cause is a dependency unit with no outputs. That unit was
+destroyed or never applied. In the dependent unit, `terragrunt init` and `terragrunt destroy`
+fail the same way. Use one of these ways out:
+
+1. If the dependency unit still has its resources, run `kube-tf destroy` in the stack
+   folder. It destroys the dependent units before the units they depend on. If the
+   dependency unit is already destroyed, this fails the same way.
+2. If the dependency unit is already destroyed, read the state without Terragrunt. For the local backend, run
+   `tofu state list -state=<path to the unit's terraform.tfstate>` from any folder. For
+   another backend, use the tool of that backend.
 
 `kube-tf destroy` does not stop. It must reach every unit on disk. It prints one line that
 names the extra folders and says it will destroy them too.
