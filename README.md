@@ -94,7 +94,7 @@ Typical order of use, top to bottom:
 |---|---|---|
 | core | **Select Folder** | Pick the folder under `live/` that the other tasks act on. Run this first. The folder can be one unit, a folder of units, a folder with a `terragrunt.stack.hcl`, or a plain OpenTofu root. |
 | core | **Cloud Login** | Log in to the folder's provider (AWS SSO, Azure CLI or the Proxmox token refresh). The provider is the folder right below `live/`, so this works before the first Init. |
-| core | **Init**, **Plan**, **Apply**, **Destroy** | Run the tool that fits the folder, through `kube-tf`. Apply and Destroy ask you to type the folder's path below `live/`. |
+| core | **Init**, **Plan**, **Apply**, **Destroy** | Run the tool that fits the folder, through `kube-tf`. Apply and Destroy ask you to type the folder's path below `live/`. In a stack folder, Init, Plan and Apply stop if a generated unit folder is no longer in the stack file. See [scripts/README.md](scripts/README.md#stale-stack-units). |
 | machines | **Start Node**, **Stop Node** | Start or stop one machine of a unit, or all of them. In a folder of units you pick a unit, or all units. |
 | machines | **Shell** | Break-glass shell on a machine, with no inbound port. |
 | cluster | **Tail** | Live-tail a node's bootstrap log. Apply returns before a node finishes joining, so this is how to watch it. |
