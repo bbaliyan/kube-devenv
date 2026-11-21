@@ -31,7 +31,7 @@ folder and run the verb yourself.
 | `select-folder` | Pick and save the selected folder. It lists every folder under `live/` that has a unit, a stack file or a `.tf` file, and every folder that holds units. It reads files only. You can type a path. `--list` prints the choices, `--current` prints the saved folder. |
 | `kube-run` | Go to the selected folder and run a `kube-*` verb. Every VS Code task calls it. |
 | `kube-cloud-login` | Log in to the provider: `aws sso login`, `az login` or the Proxmox token refresh. The provider is the folder right below `live/` (`live/<provider>/...`), so this works before the first init. A folder outside `live/` is an error. |
-| `kube-tf` | `init`, `plan`, `apply` or `destroy` on the folder, with the tool that fits it (table above). `apply` and `destroy` print what they will touch, list the units of a folder of units with their count, and ask you to type the folder's path below `live/`. A stack file shows no count, because Terragrunt generates its units later. |
+| `kube-tf` | `init`, `plan`, `apply` or `destroy` on the folder, with the tool that fits it (table above). `apply` and `destroy` print what they will touch, list the units of a folder of units with their count, and ask you to type the folder's path below `live/`. A stack file shows no count, because Terragrunt generates its units later. In a stack folder, `init`, `plan` and `apply` stop if a generated unit folder is no longer in the stack file (see "Stale stack units"). |
 | `kube-start` | Start stopped machines. Works on any unit that lists machines. |
 | `kube-stop` | Stop machines. Stopping all nodes of an AWS cluster also scales its autoscaled groups to zero. |
 | `kube-shell` | Break-glass shell on a machine (SSM session, Azure run-command or SSH for Proxmox). |
@@ -108,3 +108,28 @@ With one node there is no prompt.
 `kube-kubeconfig` reads from the control-plane node. Once a node has joined, which node you
 read from does not change the result, because the server address is rewritten to the
 cluster's shared name or IP.
+
+## Stale stack units
+
+Terragrunt regenerates the units that a stack file defines. It never deletes the folder of
+a unit that you removed from the file or moved. A stack run then runs that old folder too.
+That can create a second copy of a resource next to the first.
+
+In a stack folder, `kube-tf init`, `plan` and `apply` compare first. They generate the
+stack in a scratch copy and compare its unit folders with the ones in `.terragrunt-stack`.
+This covers nested stacks. If a folder on disk is extra, the command stops with exit code 1
+and lists each extra folder. It deletes nothing. A unit that is defined but not yet
+generated is not a problem.
+
+If `kube-tf` stops, do these steps for each extra folder:
+
+1. In the folder, run `terragrunt state list`.
+2. If the list is empty, run `terragrunt stack clean`.
+3. If the list shows resources, run `terragrunt destroy` in that folder. Then run
+   `terragrunt stack clean`.
+
+`kube-tf` does not clean for you. A clean before the destroy would remove the folder that
+holds the unit's state link, and its resources would stay in the cloud.
+
+`kube-tf destroy` does not stop. It must reach every unit on disk. It prints one line that
+names the extra folders and says it will destroy them too.

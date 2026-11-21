@@ -60,6 +60,121 @@ job "the picker lists the folder of units and skips generated units" 0 bash -c "
   cd '$lab' && out=\$(WORKSPACE_FOLDER='$lab' PATH='$repo/scripts:$PATH' select-folder --list) &&
   grep -qx live/aws/env <<<\"\$out\" && ! grep -q terragrunt-stack <<<\"\$out\""
 
+# ---- kube-tf: a unit that left the stack file ---------------------------------
+# Terragrunt never deletes the folder of a unit that was removed from a stack file or
+# moved. A stack run would run that folder too. kube-tf must stop before plan, apply and
+# init, name the extra folders, and delete nothing. A destroy must go on.
+
+stale="$lab/live/aws/stale"
+mkdir -p "$stale" "$lab/stacks/inner"
+units_hcl() {
+  local n
+  for n in "$@"; do
+    printf 'unit "%s" {\n  source = "${get_repo_root()}/units/demo"\n  path = "%s"\n  values = {\n    region = "test-region-1"\n  }\n}\n' "$n" "$n"
+  done
+}
+inner_block() { printf 'stack "inner" {\n  source = "${get_repo_root()}/stacks/inner"\n  path = "inner"\n}\n'; }
+top_stack() { units_hcl "$@" >"$stale/terragrunt.stack.hcl"; }
+top_stack_with_inner() { { units_hcl "$@"; inner_block; } >"$stale/terragrunt.stack.hcl"; }
+inner_stack() { units_hcl "$@" >"$lab/stacks/inner/terragrunt.stack.hcl"; }
+generate_now() { (cd "$stale" && terragrunt stack generate >/dev/null 2>&1); }
+fresh() { rm -rf "$stale/.terragrunt-stack"; }
+
+# stale_run <verb>: sets OUT (stdout and stderr) and RC
+stale_run() {
+  OUT="$(cd "$stale" && printf 'aws/stale\n' | WORKSPACE_FOLDER="$lab" PATH="$repo/scripts:$PATH" kube-tf "$1" 2>&1)"
+  RC=$?
+}
+# stale_expect <name> <want rc: 0|nonzero> <pattern in OUT that must match> <pattern that must not>
+stale_expect() {
+  local good=1
+  if [[ "$2" == 0 && $RC -ne 0 ]] || [[ "$2" == nonzero && $RC -eq 0 ]]; then good=0; fi
+  [[ -n "$3" ]] && ! grep -qE -- "$3" <<<"$OUT" && good=0
+  [[ -n "$4" ]] && grep -qE -- "$4" <<<"$OUT" && good=0
+  if [[ $good -eq 1 ]]; then
+    ok "$1"
+  else
+    bad "$1 (rc=$RC)"
+    sed 's/^/     /' <<<"$OUT" | tail -15
+  fi
+}
+stack_dir_exists() { [[ -f "$stale/$1/terragrunt.hcl" ]]; }
+no_probe_left() { ! compgen -G "$lab/live/aws/.kube-tf-probe.*" >/dev/null; }
+
+fresh
+top_stack a b
+stale_run plan
+stale_expect "stale check: a clean checkout with no generated folder passes" 0 "" "no longer in the stack file"
+
+generate_now
+top_stack a b c
+stale_run plan
+stale_expect "stale check: a unit added to the stack file passes" 0 "" "no longer in the stack file"
+
+fresh
+top_stack a b
+generate_now
+mkdir -p "$stale/.terragrunt-stack/a/.terragrunt-cache/x" "$stale/.terragrunt-stack/a/.terraform/y"
+: >"$stale/.terragrunt-stack/a/.terragrunt-cache/x/terragrunt.hcl"
+: >"$stale/.terragrunt-stack/a/.terraform/y/terragrunt.hcl"
+stale_run plan
+stale_expect "stale check: an unchanged stack passes, and cache folders do not count as units" 0 "" "no longer in the stack file"
+
+fresh
+top_stack a b c
+generate_now
+top_stack a b d
+stale_run plan
+stale_expect "stale check: a removed unit stops plan and is listed" nonzero "^  \.terragrunt-stack/c$" "terragrunt-stack/(a|b|d)$"
+stale_expect "stale check: the message gives the steps" nonzero "1\. Run .terragrunt state list. in the folder" ""
+stack_dir_exists .terragrunt-stack/c && ok "stale check: it deletes nothing" || bad "stale check: it deletes nothing"
+no_probe_left && ok "stale check: it leaves no scratch folder" || bad "stale check: it leaves no scratch folder"
+stale_run init
+stale_expect "stale check: init stops too" nonzero "^  \.terragrunt-stack/c$" ""
+stale_run apply
+stale_expect "stale check: apply stops before it asks for the confirmation" nonzero "^  \.terragrunt-stack/c$" "Type '"
+stale_run destroy
+stale_expect "stale check: destroy goes on and says it will destroy the extra folder" 0 "Notice: .*terragrunt-stack/c are no longer in the stack file" ""
+
+fresh
+top_stack a b c
+generate_now
+top_stack a b c2
+stale_run plan
+stale_expect "stale check: a unit renamed in the stack file is caught" nonzero "^  \.terragrunt-stack/c$" "c2"
+
+fresh
+top_stack a y
+generate_now
+inner_stack y
+top_stack_with_inner a
+stale_run plan
+stale_expect "stale check: a unit moved from the top level into a nested stack is caught" nonzero "^  \.terragrunt-stack/y$" "inner"
+
+fresh
+inner_stack x y
+top_stack_with_inner a
+generate_now
+top_stack a x y
+stale_run plan
+stale_expect "stale check: units moved out of a nested stack are caught, with the nested stack folder" nonzero "^  \.terragrunt-stack/inner/\.terragrunt-stack/x$" "^  \.terragrunt-stack/(a|x|y)$"
+
+fresh
+inner_stack x y
+top_stack_with_inner a
+generate_now
+inner_stack x
+stale_run plan
+stale_expect "stale check: a nested stack that drops a unit is caught" nonzero "^  \.terragrunt-stack/inner/\.terragrunt-stack/y$" "stack/x$"
+
+fresh
+printf 'unit "bad" {\n  source = "${get_repo_root()}/units/missing"\n  path = "bad"\n  values = {}\n}\n' >"$stale/terragrunt.stack.hcl"
+stale_run plan
+stale_expect "stale check: a stack that cannot be generated shows the real error" nonzero "failed to fetch unit bad" "no longer in the stack file"
+stale_expect "stale check: a failed generate says what it could not do" nonzero "cannot generate the stack" ""
+no_probe_left && ok "stale check: a failed generate leaves no scratch folder" || bad "stale check: a failed generate leaves no scratch folder"
+fresh
+
 # ---- sops and age: the round trip that Terragrunt's sops_decrypt_file relies on -----
 
 age-keygen -o "$work/age.key" >/dev/null 2>&1

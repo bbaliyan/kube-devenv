@@ -19,6 +19,13 @@
 # `run --all` and `stack run`, --non-interactive silences Terragrunt's own
 # run-queue prompt. A stack run adds -auto-approve to apply and destroy itself,
 # and a bare -auto-approve there fails.
+#
+# Stale stack units: Terragrunt regenerates the units a stack file defines, but never
+# deletes the folder of a unit that was removed from the file or moved. A stack run then
+# runs that old folder too. Before init, plan or apply in stack mode, this script
+# generates the stack once in a scratch copy and compares the unit folders. If a folder
+# on disk is extra, it stops and lists it. It never deletes. Destroy is not blocked,
+# because a destroy must reach every unit that exists on disk.
 set -euo pipefail
 source kube-common.sh
 
@@ -43,6 +50,54 @@ fi
 # direct child of this shell. An operator who already sets
 # ANSIBLE_CALLBACKS_ENABLED keeps their own value.
 export ANSIBLE_CALLBACKS_ENABLED="${ANSIBLE_CALLBACKS_ENABLED:-timer,profile_tasks}"
+
+# unit_folders <dir>: the generated unit folders below <dir>/.terragrunt-stack, sorted.
+# Nested stacks are covered: their units sit deeper in the same tree.
+unit_folders() {
+  [[ -d "$1/.terragrunt-stack" ]] || return 0
+  (cd "$1" && find .terragrunt-stack \( -name .terragrunt-cache -o -name .terraform \) -prune \
+    -o -name terragrunt.hcl -printf '%h\n') | LC_ALL=C sort
+}
+
+# stale_stack_units: print the generated unit folders that the stack file no longer
+# defines. The scratch copy is a sibling folder, so relative sources in the stack file
+# resolve the same way. A generate error stops the script with the real error.
+stale_stack_units() {
+  local status=0
+  PROBE=$(mktemp -d "$(pwd)/../.kube-tf-probe.XXXXXX")
+  PROBE_LOG=$(mktemp)
+  trap 'rm -rf "${PROBE}" "${PROBE_LOG}"' EXIT
+  find . -mindepth 1 -maxdepth 1 -not -name .terragrunt-stack -not -name .terragrunt-cache \
+    -not -name .terraform -exec cp -R {} "${PROBE}/" \;
+  if (cd "${PROBE}" && terragrunt stack generate --non-interactive) >"${PROBE_LOG}" 2>&1; then
+    comm -13 <(unit_folders "${PROBE}") <(unit_folders .) || status=$?
+  else
+    cat "${PROBE_LOG}" >&2
+    echo "Error: cannot generate the stack to compare its units." >&2
+    status=1
+  fi
+  return "${status}"
+}
+
+if [[ "${MODE}" == stack ]]; then
+  STALE=$(stale_stack_units) || exit 1
+  if [[ -n "${STALE}" && "${VERB}" == destroy ]]; then
+    echo "Notice: ${STALE//$'
+'/, } are no longer in the stack file. This destroy will destroy them too." >&2
+  elif [[ -n "${STALE}" ]]; then
+    echo "Error: these generated unit folders are no longer in the stack file:" >&2
+    sed 's/^/  /' <<<"${STALE}" >&2
+    cat >&2 <<'MSG'
+
+A stack run would run them too. Do not delete them yet: their state may still hold resources.
+For each folder above:
+  1. Run `terragrunt state list` in the folder.
+  2. If the list is empty, run `terragrunt stack clean`.
+  3. If the list shows resources, run `terragrunt destroy` in that folder. Then run `terragrunt stack clean`.
+MSG
+    exit 1
+  fi
+fi
 
 if [[ "${VERB}" == apply || "${VERB}" == destroy ]]; then
   LABEL=$(target_label)
