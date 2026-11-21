@@ -137,7 +137,8 @@ generate_now
 top_stack a b d
 stale_run plan
 stale_expect "stale check: a removed unit stops plan and is listed" nonzero "^  \.terragrunt-stack/c$" "terragrunt-stack/(a|b|d)$"
-stale_expect "stale check: the message says what to do when state list fails" nonzero "terragrunt state list.. If it fails, run .kube-tf init. there" ""
+stale_expect "stale check: the message says to run state list in each folder" nonzero "In each folder above, run .terragrunt state list" ""
+stale_expect "stale check: the message says not to clean when state list fails" nonzero "If it fails, do not run the clean" ""
 (cd "$stale/.terragrunt-stack/c" && WORKSPACE_FOLDER="$lab" PATH="$repo/scripts:$PATH" kube-tf init >/dev/null 2>&1) && ok "stale check: kube-tf init works inside an extra unit folder" || bad "stale check: kube-tf init works inside an extra unit folder"
 stack_dir_exists .terragrunt-stack/c && ok "stale check: it deletes nothing" || bad "stale check: it deletes nothing"
 no_probe_left && ok "stale check: it leaves no scratch folder" || bad "stale check: it leaves no scratch folder"
@@ -156,9 +157,45 @@ stale_run plan
 stale_expect "stale check: with several extra folders, the first is listed" nonzero "^  \.terragrunt-stack/b$" ""
 stale_expect "stale check: the second extra folder is listed too" nonzero "^  \.terragrunt-stack/c$" ""
 stale_expect "stale check: the text says to destroy" nonzero "terragrunt destroy" ""
-stale_expect "stale check: the clean is conditional and runs in the stack folder only" nonzero "When no folder lists resources, run .terragrunt stack clean. in the stack folder" "each unit folder"
+stale_expect "stale check: the clean waits for empty lists and runs in the stack folder only" nonzero "When every folder lists no resources, run .terragrunt stack clean. in the stack folder" "each unit folder"
 stale_run destroy
 stale_expect "stale check: destroy with two extra folders names both, comma-separated, and says it destroys them" 0 "Notice: \.terragrunt-stack/b, \.terragrunt-stack/c are no longer.*destroy them too" ""
+
+# A stale unit that depends on a destroyed unit: Terragrunt cannot read its state.
+mkdir -p "$lab/units/dependent"
+printf 'terraform {
+  source = "${get_repo_root()}/modules/demo"
+}
+dependency "first" {
+  config_path = "../first"
+}
+inputs = {
+  region = dependency.first.outputs.region
+}
+' >"$lab/units/dependent/terragrunt.hcl"
+fresh
+{ units_hcl first; printf 'unit "second" {
+  source = "${get_repo_root()}/units/dependent"
+  path = "second"
+}
+'; } >"$stale/terragrunt.stack.hcl"
+stale_run apply
+top_stack other
+stale_run destroy
+stale_expect "stale check: destroy from the stack folder destroys a dependent unit and its dependency" 0 "Destroy complete" "Error"
+fresh
+{ units_hcl first; printf 'unit "second" {
+  source = "${get_repo_root()}/units/dependent"
+  path = "second"
+}
+'; } >"$stale/terragrunt.stack.hcl"
+stale_run apply
+top_stack other
+(cd "$stale/.terragrunt-stack/first" && terragrunt destroy --non-interactive -auto-approve >/dev/null 2>&1)
+job "stale check: state list fails in a unit whose dependency was destroyed (the message says not to clean then)" nonzero bash -c "cd '$stale/.terragrunt-stack/second' && terragrunt state list"
+stale_run destroy
+stale_expect "stale check: destroy from the stack folder also fails once the dependency is destroyed" nonzero "no outputs|did not run due to an earlier failure" ""
+fresh
 
 fresh
 { units_hcl a; nodot_unit n; } >"$stale/terragrunt.stack.hcl"
