@@ -330,6 +330,9 @@ YAML
   expect "helm-kubeconform: HELM_VALUES_ROOT renders a chart with required values from its test values" 0 env HELM_VALUES_ROOT=tests/values "$hk" "$repo"
   expect "helm-kubeconform: without HELM_VALUES_ROOT the same chart cannot render" 1 "$hk" "$repo"
 
+  # The directory that is given is the chart itself: its name still picks the test values.
+  expect "helm-kubeconform: HELM_VALUES_ROOT works when the given directory is the chart" 0 env HELM_VALUES_ROOT="$repo/tests/values" "$hk" "$repo/charts/demo"
+
   repo="$(new_repo hk-root-bad)"
   make_required_chart "$repo/charts/demo"
   mkdir -p "$repo/tests/values/demo"
