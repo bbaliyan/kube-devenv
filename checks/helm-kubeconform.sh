@@ -28,7 +28,7 @@ while IFS= read -r chart_file; do
   fi
 
   if [ -n "${HELM_VALUES_ROOT:-}" ]; then
-    candidates=("$HELM_VALUES_ROOT/$(basename "$chart")"/*.yaml)
+    candidates=("$HELM_VALUES_ROOT/$(basename "$(cd "$chart" && pwd)")"/*.yaml)
     cases=()
   else
     candidates=("$chart"/ci/*values.yaml)
