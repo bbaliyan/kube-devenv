@@ -352,6 +352,105 @@ else
   skip "helm-kubeconform: rendering" "helm and kubeconform"
 fi
 
+# ── argocd-removal.sh ─────────────────────────────────────────────────────────
+ar="$CHECKS_DIR/argocd-removal.sh"
+
+if command -v kubeconform >/dev/null; then
+  finalizer='  finalizers:
+    - resources-finalizer.argocd.argoproj.io'
+  reason='    kube-stack/keep-resources-on-delete: holds the database volume claim'
+  options='    argocd.argoproj.io/sync-options: Prune=false,Delete=false'
+
+  argo() { # <file> <kind> <extra metadata lines> [apiVersion]
+    cat >"$1" <<YAML
+apiVersion: ${4:-argoproj.io/v1alpha1}
+kind: $2
+metadata:
+  name: demo
+  namespace: argocd
+$3
+spec: {}
+YAML
+  }
+
+  # <name> <exit-code> <extra metadata lines>: the same case for both kinds
+  removal_case() {
+    local kind
+    for kind in Application AppProject; do
+      argo "$work/argo.yaml" "$kind" "$3"
+      expect "argocd-removal: $kind $1" "$2" "$ar" "$work/argo.yaml"
+    done
+  }
+
+  removal_case "with the finalizer passes" 0 "$finalizer"
+  removal_case "with no finalizer fails" 1 ''
+  removal_case "with only another finalizer fails" 1 '  finalizers:
+    - something.else/finalizer'
+  removal_case "that opts out with a reason and both sync options passes" 0 "  annotations:
+$reason
+$options"
+  removal_case "that opts out with spaces and more sync options passes" 0 "  annotations:
+$reason
+    argocd.argoproj.io/sync-options: ServerSideApply=true, Delete=false, Prune=false"
+  removal_case "that opts out with an empty reason fails" 1 "  annotations:
+    kube-stack/keep-resources-on-delete: ' '
+$options"
+  removal_case "that opts out with no reason value fails" 1 "  annotations:
+    kube-stack/keep-resources-on-delete:
+$options"
+  removal_case "with the sync options and no reason annotation fails" 1 "  annotations:
+$options"
+  removal_case "that opts out with no sync options fails" 1 "  annotations:
+$reason"
+  removal_case "that opts out with only Prune=false fails" 1 "  annotations:
+$reason
+    argocd.argoproj.io/sync-options: Prune=false"
+  removal_case "that opts out with only Delete=false fails" 1 "  annotations:
+$reason
+    argocd.argoproj.io/sync-options: Delete=false"
+  removal_case "with the finalizer and an opt-out fails" 1 "  annotations:
+$reason
+$options
+$finalizer"
+
+  local_finalizer() { printf '  finalizers:
+    - resources-finalizer.argocd.argoproj.io/%s' "$1"; }
+  for form in foreground background; do
+    argo "$work/argo.yaml" Application "$(local_finalizer $form)"
+    expect "argocd-removal: Application with the /$form finalizer passes" 0 "$ar" "$work/argo.yaml"
+    argo "$work/argo.yaml" AppProject "$(local_finalizer $form)"
+    expect "argocd-removal: AppProject with the /$form finalizer fails" 1 "$ar" "$work/argo.yaml"
+    argo "$work/argo.yaml" AppProject "$finalizer
+    - resources-finalizer.argocd.argoproj.io/$form"
+    expect "argocd-removal: AppProject with the plain and the /$form finalizer fails" 1 "$ar" "$work/argo.yaml"
+    removal_case "that opts out and has the /$form finalizer fails" 1 "  annotations:
+$reason
+$options
+$(local_finalizer $form)"
+  done
+  removal_case "with a look-alike finalizer fails" 1 '  finalizers:
+    - resources-finalizer.argocd.argoproj.io/other'
+
+  mkdir -p "$work/argo-mixed"
+  argo "$work/argo-mixed/good.yaml" Application "$finalizer"
+  { printf 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n---\n'; argo /dev/stdout Application ''; } >"$work/argo-mixed/bad.yaml"
+  expect "argocd-removal: one bad Application among good ones in a directory fails" 1 "$ar" "$work/argo-mixed"
+
+  printf 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n' >"$work/argo-cm.yaml"
+  argo "$work/argo-other.yaml" Application '' app.k8s.io/v1beta1
+  argo "$work/argo.yaml" Application "$finalizer"
+  cat "$work/argo.yaml" <(echo ---) "$work/argo-cm.yaml" <(echo ---) "$work/argo-other.yaml" >"$work/argo-all.yaml"
+  expect "argocd-removal: other resources are ignored" 0 "$ar" "$work/argo-all.yaml"
+  expect_output "argocd-removal: input with no Application or AppProject fails" "no Application or AppProject found" "$ar" "$work/argo-cm.yaml" "$work/argo-other.yaml"
+  expect_output "argocd-removal: a missing path is reported as unreadable" "could not read" "$ar" "$work/no-such-dir"
+  expect "argocd-removal: an input with other resources beside a good one passes" 0 "$ar" "$work/argo.yaml" "$work/argo-cm.yaml"
+  : >"$work/argo-empty.yaml"
+  expect_output "argocd-removal: one empty input beside a good one fails" "nothing to check in $work/argo-empty.yaml" "$ar" "$work/argo.yaml" "$work/argo-empty.yaml"
+  expect_output "argocd-removal: reads standard input" "Valid: 1" bash -c '"$1" - <"$2" && "$1" - <"$2"' _ "$ar" "$work/argo.yaml"
+else
+  skip "argocd-removal" kubeconform
+fi
+
 # ── check-trivyignore.sh ──────────────────────────────────────────────────────
 ti="$CHECKS_DIR/check-trivyignore.sh"
 

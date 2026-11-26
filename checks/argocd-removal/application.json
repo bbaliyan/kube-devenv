@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "An Argo CD Application or AppProject has the resources finalizer, or it opts out: kube-stack/keep-resources-on-delete gives the reason, the sync options hold Prune=false and Delete=false, and it has no resources finalizer.",
+  "type": "object",
+  "required": ["metadata"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "if": {
+        "required": ["annotations"],
+        "properties": {
+          "annotations": { "type": "object", "required": ["kube-stack/keep-resources-on-delete"] }
+        }
+      },
+      "then": {
+        "required": ["annotations"],
+        "properties": {
+          "annotations": {
+            "required": ["argocd.argoproj.io/sync-options"],
+            "properties": {
+              "kube-stack/keep-resources-on-delete": { "type": "string", "pattern": "\\S" },
+              "argocd.argoproj.io/sync-options": {
+                "type": "string",
+                "allOf": [
+                  { "pattern": "(^|,)\\s*Prune=false\\s*(,|$)" },
+                  { "pattern": "(^|,)\\s*Delete=false\\s*(,|$)" }
+                ]
+              }
+            }
+          },
+          "finalizers": { "not": { "contains": { "pattern": "^resources-finalizer[.]argocd[.]argoproj[.]io(/(foreground|background))?$" } } }
+        }
+      },
+      "else": {
+        "required": ["finalizers"],
+        "properties": {
+          "finalizers": { "type": "array", "contains": { "pattern": "^resources-finalizer[.]argocd[.]argoproj[.]io(/(foreground|background))?$" } }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "The rule of application.json. Argo CD removes only the plain finalizer from an AppProject, so a project with the /foreground or /background form can never be deleted.",
+  "allOf": [
+    { "$ref": "application.json" },
+    { "properties": { "metadata": { "properties": { "finalizers": { "not": { "contains": { "pattern": "^resources-finalizer[.]argocd[.]argoproj[.]io/" } } } } } } }
+  ]
+}
