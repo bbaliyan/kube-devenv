@@ -29,13 +29,13 @@
               }
             }
           },
-          "finalizers": { "not": { "contains": { "const": "resources-finalizer.argocd.argoproj.io" } } }
+          "finalizers": { "not": { "contains": { "pattern": "^resources-finalizer[.]argocd[.]argoproj[.]io(/(foreground|background))?$" } } }
         }
       },
       "else": {
         "required": ["finalizers"],
         "properties": {
-          "finalizers": { "type": "array", "contains": { "const": "resources-finalizer.argocd.argoproj.io" } }
+          "finalizers": { "type": "array", "contains": { "pattern": "^resources-finalizer[.]argocd[.]argoproj[.]io(/(foreground|background))?$" } }
         }
       }
     }
