@@ -315,6 +315,34 @@ YAML
   make_chart "$repo/charts/demo" '"many"'
   expect "helm-kubeconform: a chart rendering an invalid object fails" 1 "$hk" "$repo"
 
+  # Test values outside the chart directory (HELM_VALUES_ROOT).
+  make_required_chart() { # <dir>
+    make_chart "$1" 1
+    printf '{{- $_ := required "image is required" .Values.image }}
+' >"$1/templates/required.yaml"
+    sed -i 's|image: example.invalid/demo:1|image: {{ .Values.image }}|' "$1/templates/deploy.yaml"
+  }
+  repo="$(new_repo hk-root-good)"
+  make_required_chart "$repo/charts/demo"
+  mkdir -p "$repo/tests/values/demo"
+  printf 'image: example.invalid/demo:1
+' >"$repo/tests/values/demo/main.yaml"
+  expect "helm-kubeconform: HELM_VALUES_ROOT renders a chart with required values from its test values" 0 env HELM_VALUES_ROOT=tests/values "$hk" "$repo"
+  expect "helm-kubeconform: without HELM_VALUES_ROOT the same chart cannot render" 1 "$hk" "$repo"
+
+  repo="$(new_repo hk-root-bad)"
+  make_required_chart "$repo/charts/demo"
+  mkdir -p "$repo/tests/values/demo"
+  printf 'image: example.invalid/demo:1
+' >"$repo/tests/values/demo/good.yaml"
+  printf 'image: ""
+' >"$repo/tests/values/demo/bad.yaml"
+  expect "helm-kubeconform: HELM_VALUES_ROOT fails when one test values file does not render" 1 env HELM_VALUES_ROOT=tests/values "$hk" "$repo"
+
+  repo="$(new_repo hk-root-none)"
+  make_chart "$repo/charts/demo" 1
+  expect "helm-kubeconform: a chart with no files in HELM_VALUES_ROOT is rendered with its defaults" 0 env HELM_VALUES_ROOT=tests/values "$hk" "$repo"
+
   repo="$(new_repo hk-none)"
   expect "helm-kubeconform: a repo with no chart passes" 0 "$hk" "$repo"
 else
