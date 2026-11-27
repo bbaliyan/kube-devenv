@@ -27,7 +27,7 @@ ARG TARGETARCH
 # ── Tool versions (Renovate-managed) ──────────────────────────────────────────
 
 # renovate: datasource=github-releases depName=opentofu/opentofu
-ARG TOFU_VERSION=1.13.9
+ARG TOFU_VERSION=1.13.10
 
 # Held at 1.1.3 — see renovate.json. 1.1.4 fails to load AWS config whenever a
 # CA bundle is configured (AWS_CA_BUNDLE, or ca_bundle in the shared config),
@@ -112,11 +112,11 @@ ARG YAMALE_VERSION=6.1.0
 ARG ANSIBLE_CORE_VERSION=2.22.0
 
 # renovate: datasource=pypi depName=ansible-lint
-ARG ANSIBLE_LINT_VERSION=26.11.0
+ARG ANSIBLE_LINT_VERSION=26.11.1
 
 # botocore is not pinned: boto3 constrains it to a matching release.
 # renovate: datasource=pypi depName=boto3
-ARG BOTO3_VERSION=1.44.11
+ARG BOTO3_VERSION=1.44.12
 
 # renovate: datasource=galaxy-collection depName=amazon.aws
 ARG AMAZON_AWS_VERSION=11.5.1
