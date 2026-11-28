@@ -38,7 +38,7 @@ ARG TOFU_VERSION=1.13.10
 ARG TERRAGRUNT_VERSION=1.2.2
 
 # renovate: datasource=github-releases depName=hashicorp/packer
-ARG PACKER_VERSION=1.16.2
+ARG PACKER_VERSION=1.16.3
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=1.37.2
